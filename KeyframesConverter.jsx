@@ -1,12 +1,29 @@
 ﻿//FUNCTION SECTION...
+//debug section to be deleted...//
 //log wrapper
-function log(arg)
+log = function (arg)
 {
     $.writeln(arg);
 }
 
+logLayersIndexes = function (layersIndexes_arr)
+{
+    var l_str = "";
+    if (layersIndexes_arr.length === 0)
+    {
+        log("empty");
+        return;
+    }
+    for (var i = 0; i < layersIndexes_arr.length; i++)
+    {
+        l_str += layersIndexes_arr[i] += " ";
+    }
+    log(l_str);
+}
+//...debug section to be deleted//
+
 //gets a URL based on the file path and the name 
-function getUrl(name) 
+getUrl = function (name) 
 {
     var projectName = app.project.file.name.replace(".aep", "");
     var compName = app.project.activeItem.name;
@@ -20,7 +37,7 @@ function getUrl(name)
 //   go to: Edit > Preferences > General > and check on "Allow Scripts to Write Files and Access Network"
 //
 //write the output to disk:
-function saveFile(obj, fileName) 
+saveFile = function (obj, fileName) 
 {
     var output = new File(getUrl(fileName + ".json"));
     if (output.open("w")) 
@@ -33,7 +50,7 @@ function saveFile(obj, fileName)
 }
 
 //recursive method to get all values from all layers
-function scanLayers(obj, id, props) 
+scanLayers = function (obj, id, props) 
 {
     if (id > comp.layers.length)
     {
@@ -129,13 +146,7 @@ function scanLayers(obj, id, props)
 //...FUNCTION SECTION
 
 //GUI SECTION...
-/*var lWindowSizeX_num = 570;
-var lWindowSizeY_num = 600;
-var lWindowOffsetX_num = $.screens[0].right / 2 - lWindowSizeX_num / 2;
-var lWindowOffsetY_num = $.screens[0].bottom / 2 - lWindowSizeY_num / 2;*/
-var win = new Window("dialog", "Keyframes Converter", 
-    //[lWindowOffsetX_num, lWindowOffsetY_num, lWindowSizeX_num + lWindowOffsetX_num, lWindowSizeY_num + lWindowOffsetY_num]);
-    undefined);
+var win = new Window("dialog", "Keyframes Converter", undefined);
 
 var lListboxContainer_panel = win.add("panel", undefined, "Container");
 lListboxContainer_panel.orientation = "row";
@@ -145,45 +156,57 @@ lSourceLayers_lb.alignment = ["fill", "fill"];
 lSourceLayers_lb.alignChildren = ["fill", "fill"];
 lSourceLayers_lb.bounds = { x:10, y:10, width:250, height:300 };
 
-var lTogoLayers_lb = lListboxContainer_panel.add("listbox", undefined);
-lTogoLayers_lb.alignment = ["fill", "fill"];
-lTogoLayers_lb.alignChildren = ["fill", "fill"];
-lTogoLayers_lb.bounds = { x:310, y:10, width:250, height:300 };
+var lDestLayers_lb = lListboxContainer_panel.add("listbox", undefined);
+lDestLayers_lb.alignment = ["fill", "fill"];
+lDestLayers_lb.alignChildren = ["fill", "fill"];
+lDestLayers_lb.bounds = { x:310, y:10, width:250, height:300 };
 
-var lSourceLayersIndexes_int_arr = [];
-var lTogoLayersIndexes_int_arr = [];
+var lSourceLayersIndexes_arr = [];
+var lDestLayersIndexes_arr = [];
 
-for (var i = 1; i <= /*comp.layers.length*/  6; i++)
+for (var i = 1; i <= comp.layers.length; i++)
 {
     if (comp.layers[i] !== null)
     {
         lSourceLayers_lb.add("item", comp.layers[i].name);
-        lSourceLayersIndexes_int_arr.push(i);
+        lSourceLayersIndexes_arr.push(i);
     }
 }
 
 lSourceLayers_lb.onDoubleClick = function ()
 {
-    var lLayer_lbi = lSourceLayers_lb.selection;
-    var lRelativeLayerIndex_num = lLayer_lbi.index;
+    moveSelectedLayerBetweenGroups(lSourceLayers_lb, lSourceLayersIndexes_arr, lDestLayers_lb, lDestLayersIndexes_arr);
 
-    lTogoLayers_lb.add("item", lLayer_lbi.text);
-    lTogoLayersIndexes_int_arr.push(lSourceLayersIndexes_int_arr[lRelativeLayerIndex_num]);
-
-    lSourceLayers_lb.remove(lLayer_lbi);
-    lSourceLayersIndexes_int_arr.splice(lRelativeLayerIndex_num, 1);
+    //debug section to be deleted...//
+    /*logLayersIndexes(lSourceLayersIndexes_arr);
+    logLayersIndexes(lDestLayersIndexes_arr);*/
+    //...debug section to be deleted//
 }
 
-lTogoLayers_lb.onDoubleClick = function ()
+lDestLayers_lb.onDoubleClick = function ()
 {
-    var lLayer_lbi = lTogoLayers_lb.selection;
+    moveSelectedLayerBetweenGroups(lDestLayers_lb, lDestLayersIndexes_arr, lSourceLayers_lb, lSourceLayersIndexes_arr);
+
+    //debug section to be deleted...//
+    /*logLayersIndexes(lSourceLayersIndexes_arr);
+    logLayersIndexes(lDestLayersIndexes_arr);*/
+    //...debug section to be deleted//
+}
+
+moveSelectedLayerBetweenGroups = function (aSrcLayersGroup_lb, aSourceLayersIndexes_arr, aDestLayersGroup_lb, aDestLayersIndexes_arr)
+{
+    var lLayer_lbi = aSrcLayersGroup_lb.selection;
+    if (lLayer_lbi === null)
+    {
+        return;
+    }
     var lRelativeLayerIndex_num = lLayer_lbi.index;
 
-    lSourceLayers_lb.add("item", lLayer_lbi.text);
-    lSourceLayersIndexes_int_arr.push(lTogoLayersIndexes_int_arr[lRelativeLayerIndex_num]);
+    aDestLayersGroup_lb.add("item", lLayer_lbi.text);
+    aDestLayersIndexes_arr.push(aSourceLayersIndexes_arr[lRelativeLayerIndex_num]);
 
-    lTogoLayers_lb.remove(lLayer_lbi);
-    lTogoLayersIndexes_int_arr.splice(lRelativeLayerIndex_num, 1);
+    aSrcLayersGroup_lb.remove(lLayer_lbi);
+    aSourceLayersIndexes_arr.splice(lRelativeLayerIndex_num, 1);
 }
 
 var lDescription_txt = win.add("statictext", undefined, "Double click on item to move it between groups");
@@ -212,7 +235,9 @@ win.show();
 var properties = [];
 for (var i = 0; i < prs.length; i++) 
 {
-    log(prs[i] + " -> " + win[prs[i]].value);
+    //debug section to be deleted...//
+    //log(prs[i] + " -> " + win[prs[i]].value);
+    //...debug section to be deleted//
     if (win[prs[i]].value) 
     {
         properties.push(prs[i]);
