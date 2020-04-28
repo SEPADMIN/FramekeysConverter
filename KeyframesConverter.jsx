@@ -9,6 +9,12 @@ var _PROPERTIES = [
             "rotation",
             "opacity"
         ];
+var _MIN_PROPERTY_VALUE = {
+            scale: 0.01,
+            position: 1,
+            rotation: 1,
+            opacity: 0.01
+        };
 
 var _fWindow = null;
 var _fSelectedLayersIndexes_arr = null;
@@ -62,7 +68,6 @@ _buildGUI = function ()
     l_window.settings = l_window.add("panel", undefined, "Settings", {name:"settings"}); 
     l_window.settings.alignChildren = ["fill", "fill"];
     l_window.settings.orientation = "row";
-    l_window.settings.titleLayout = {alignment: ['center', 'top']};
 
     l_window.settings.properties = l_window.settings.add("panel", undefined, "Properties", {name:"properties"});
     l_window.settings.properties.alignChildren = ["fill", "fill"];
@@ -71,6 +76,16 @@ _buildGUI = function ()
     {
         var lProperty_cb = l_window.settings.properties.add("checkbox", undefined, _PROPERTIES[i], {name:"property_" + i}); 
         lProperty_cb.value = true;
+    }
+
+    l_window.settings.properties.property_0.onClick = function ()
+    {
+        l_window.settings.gut.sxsy_mode.enabled = l_window.settings.properties.property_0.value;
+    }
+
+    l_window.settings.properties.property_1.onClick = function ()
+    {
+        l_window.settings.gut.xy_mode.enabled = l_window.settings.properties.property_1.value;
     }
 
     l_window.settings.mode = l_window.settings.add("panel", undefined, "Output mode", {name:"mode"});
@@ -84,12 +99,25 @@ _buildGUI = function ()
     l_window.settings.mode.gut_mode.onClick = function ()
     {
         l_window.settings.mode.group_mode.enabled = false;
+        l_window.settings.gut.enabled = true;
     }
 
     l_window.settings.mode.json_mode.onClick = function ()
     {
         l_window.settings.mode.group_mode.enabled = true;
+        l_window.settings.gut.enabled = false;
     }
+
+    l_window.settings.gut = l_window.settings.add("panel", undefined, "GUTimeline", {name:"gut"});
+    l_window.settings.gut.alignChildren = ["fill", "top"];
+    l_window.settings.gut.add("checkbox", undefined, "i_SET_SCALE_XY", {name:"sxsy_mode"});
+    l_window.settings.gut.add("checkbox", undefined, "i_SET_XY", {name:"xy_mode"});
+    l_window.settings.gut.sxsy_mode.value = true;
+    l_window.settings.gut.xy_mode.value = true;
+    l_window.settings.gut.separator = l_window.settings.gut.add("panel");
+    l_window.settings.gut.separator.preferredSize = [0, 0];
+    l_window.settings.gut.linear_mode = l_window.settings.gut.add("checkbox", undefined, "Linear interpolation", {name:"linear_mode"});
+    l_window.settings.gut.linear_mode.value = true;
 
     var lConvertBtn = l_window.add("button", undefined, 'Convert', {name:"ok"}); 
 
@@ -111,6 +139,16 @@ _moveSelectedLayerBetweenGroups = function (aSrcLayersGroup_lb, aSourceLayersInd
     aSrcLayersGroup_lb.remove(lLayer_lbi);
     aSourceLayersIndexes_arr.splice(lRelativeLayerIndex_num, 1);
 }
+
+_isGroupMode = function () //get if group mode checkbox is checked
+{
+    return _fWindow.children["settings"].children["mode"].children["group_mode"].value;
+}
+
+_isGUTimelineMode = function () //get if GUTimeline mode radiobutton is checked
+{
+    return _fWindow.children["settings"].children["mode"].children["gut_mode"].value;
+}
 //...GUI SECTION
 
 //FUNCTION SECTION...
@@ -128,71 +166,6 @@ _getProperties = function () //specify properties to export
         lWinOptions_arr.children["property_" + i].value && lProperties_arr.push(_PROPERTIES[i]);
     }
     return lProperties_arr;
-}
-
-_isGroupMode = function () //get if group mode checkbox is checked
-{
-    return _fWindow.children["settings"].children["mode"].children["group_mode"].value;
-}
-
-_getUrl = function (aURL_str) //gets a URL based on the file path and the name 
-{
-    var lProjectName_str = app.project.file.name.replace(".aep", "");
-    var lCompName_str = app.project.activeItem.name;
-    var lFileName_str = aURL_str || lProjectName_str + "_"+ lCompName_str + ".json";
-    lFileName_str = lFileName_str.replace(/\s/g, "");
-    var lPath_str = app.project.file.parent.absoluteURI + "/Export/";
-    var lExport_folder = new Folder(lPath_str);
-    !(lExport_folder.exists) && lExport_folder.create();
-    return lPath_str + lFileName_str;
-}
-
-_exportObject = function (aSrc_obj) //wrapper for export
-{
-    if (_fWindow.children["settings"].children["mode"].children["gut_mode"].value)
-    {
-        _exportAsGUTimeline(aSrc_obj);
-    }
-    else
-    {
-        if (_isGroupMode())
-        {
-            _exportByGroupsAsJSON(aSrc_obj);
-        }
-        else
-        {
-            _exportAsJSON(aSrc_obj);
-        }
-    }
-
-    return true;
-}
-
-_saveAsJSON = function (aSrc_obj, aFileName_str)
-{
-    var lOutput_file = new File(_getUrl(aFileName_str + ".json"));
-    if (lOutput_file.open("w")) 
-    {
-        lOutput_file.encoding = "UTF-8";
-        var lContent = JSON.stringify(aSrc_obj, undefined, 2);
-        lOutput_file.write(lContent);
-        lOutput_file.close();
-        return true;
-    }
-    return false;
-}
-
-_saveAsGUTimeline = function (aText_str, aFileName_str)
-{
-    var lOutput_file = new File(_getUrl(aFileName_str + "_gut.js"));
-    if (lOutput_file.open("w")) 
-    {
-        lOutput_file.encoding = "UTF-8";
-        lOutput_file.write(aText_str);
-        lOutput_file.close();
-        return true;
-    }
-    return false;
 }
 
 _secondsToFrames = function (aSeconds_num)
@@ -320,9 +293,94 @@ _areValuesEqual = function (aFirstValue, aSecondValue)
         return (aFirstValue === aSecondValue) ? true : false;
     }
 }
+
+_copyObjectValue = function (aDest_obj, aSrc_obj, aPropertyName_str)
+{
+    switch (aPropertyName_str)
+    {
+        case "scale":
+            aDest_obj["sx"] = aSrc_obj["sx"];
+            aDest_obj["sy"] = aSrc_obj["sy"];
+            break;
+        case "position":
+            aDest_obj["x"] = aSrc_obj["x"];
+            aDest_obj["y"] = aSrc_obj["y"];
+            break;
+        case "rotation":
+            aDest_obj["r"] = aSrc_obj["r"];
+            break;
+        case "opacity":
+            aDest_obj["a"] = aSrc_obj["a"];
+            break;
+    }
+}
+
+_getLayerTimestampsBounds = function (aLayerName_str)
+{
+    var lProperties_arr = _fSelectedLayersPropertiesNames_arr[aLayerName_str];
+    var lTimestampsBounds_arr = _fLayersPropertiesTimestampsBounds_obj[aLayerName_str][lProperties_arr[0]];
+    var lMin_num = lTimestampsBounds_arr[0];
+    var lMax_num = lTimestampsBounds_arr[1];
+    for (var propIndex = 1; propIndex < lProperties_arr.length; propIndex++)
+    {
+        lTimestampsBounds_arr = _fLayersPropertiesTimestampsBounds_obj[aLayerName_str][lProperties_arr[propIndex]];
+        lMin_num > lTimestampsBounds_arr[0] && lMin_num = lTimestampsBounds_arr[0];
+        lMax_num < lTimestampsBounds_arr[1] && lMax_num = lTimestampsBounds_arr[1];
+    }
+    return [lMin_num, lMax_num];
+}
+
+_groupPropertiesByIntersection = function ()
+{
+    var lGroup_obj = {};
+
+    for (var layerIndex = 0; layerIndex < _fSelectedLayersNames_arr.length; layerIndex++)
+    {
+        var lLayerName_str = _fSelectedLayersNames_arr[layerIndex];
+        !(lGroup_obj.hasOwnProperty(lLayerName_str)) && lGroup_obj[lLayerName_str] = [];
+        var lGroup_arr = lGroup_obj[lLayerName_str];
+        for (var propIndex = 0; propIndex < _fSelectedLayersPropertiesNames_arr[lLayerName_str].length; propIndex++)
+        {
+            var lPropertyName_str = _fSelectedLayersPropertiesNames_arr[lLayerName_str][propIndex];
+            var lPropertyBounds_arr = _fLayersPropertiesTimestampsBounds_obj[lLayerName_str][lPropertyName_str];
+
+            var lAddGroup_bl = true;
+            for (var groupIndex = 0; groupIndex < lGroup_arr.length; groupIndex++)
+            {
+                if (
+                        (lGroup_arr[groupIndex].bounds[1] < lPropertyBounds_arr[0])
+                        || (lGroup_arr[groupIndex].bounds[0] > lPropertyBounds_arr[1])
+                    )
+                {
+                    continue;
+                }
+                else 
+                {
+                    !(lGroup_arr[groupIndex].hasOwnProperty("children")) && lGroup_arr[groupIndex].children = [];
+                    lGroup_arr[groupIndex].children.push(lPropertyName_str);
+                    !(lGroup_arr[groupIndex].hasOwnProperty("bounds")) && lGroup_arr[groupIndex].bounds = [];
+                    lGroup_arr[groupIndex].bounds[0] = Math.min(lGroup_arr[groupIndex].bounds[0], lPropertyBounds_arr[0]);
+                    lGroup_arr[groupIndex].bounds[1] = Math.max(lGroup_arr[groupIndex].bounds[1], lPropertyBounds_arr[1]);
+                    lAddGroup_bl = false;
+                    break;
+                }
+            }
+            if (lAddGroup_bl)
+            {
+                var newGroupIndex = lGroup_arr.length;
+                lGroup_arr.push({});
+                lGroup_arr[newGroupIndex].bounds = lPropertyBounds_arr;
+                lGroup_arr[newGroupIndex].children = [];
+                lGroup_arr[newGroupIndex].children.push(lPropertyName_str);
+            }
+        }
+    }
+
+    _fLayersPropertiesGroup_obj = lGroup_obj;
+}
 //...FUNCTION SECTION
 
-//JSON EXPORT SECTION...
+//EXPORT SECTION...
 _exportAsGUTimeline = function (aSrc_obj)
 {
     if (!(_fSelectedLayersNames_arr))
@@ -339,113 +397,144 @@ _exportAsGUTimeline = function (aSrc_obj)
 
         for (var propIndex = 0; propIndex < lProperties_arr.length; propIndex++)
         {
-            lText_str += "\nl_gut.i_addAnimation(context_obj_placeholder, GUTimeline.";
             var lPropertyName_str = lProperties_arr[propIndex];
             var lSrc_obj = aSrc_obj[lLayerName_str][lPropertyName_str];
 
-            var lRecieverType_str = "";
-            var lArrayValue_bl = false;
-            var lValuePropertyNames_arr = [];
-            switch (lPropertyName_str)
+            var l_vsdo = _getValuesDescriptionObject(lPropertyName_str);
+            var lRecieverTypes_arr = [];
+            if (l_vsdo.recieverType instanceof Array)
             {
-                case "position":
-                    lRecieverType_str = "i_SET_XY";
-                    lArrayValue_bl = true;
-                    lValuePropertyNames_arr.push("x", "y");
-                    break;
-                case "scale":
-                    lRecieverType_str = "i_SET_SCALE_XY";
-                    lArrayValue_bl = true;
-                    lValuePropertyNames_arr.push("sx", "sy");
-                    break;
-                case "rotation":
-                    lRecieverType_str = "i_SET_ROTATION";
-                    lValuePropertyNames_arr.push("r");
-                    break;
-                case "opacity":
-                    lRecieverType_str = "i_SET_ALPHA";
-                    lValuePropertyNames_arr.push("a");
-                    break;
-            }
-            lText_str += lRecieverType_str;
-
-            var lSrcPropertyTimestamps_arr = lSrc_obj.reflect.properties;
-            lSrcPropertyTimestamps_arr.splice(lSrcPropertyTimestamps_arr.length - 4, 4);
-            var lLocalBounds_arr = _fLayersPropertiesTimestampsBounds_obj[lLayerName_str][lPropertyName_str];
-            var lFrameDiff_int = _secondsToFrames(lLocalBounds_arr[0] - lGlobalBounds_arr[0]);
-
-            var lInitValue_str = "";
-            var lWaitingStart_bl = false;
-            if (lFrameDiff_int > 0)
-            {
-                lInitValue_str = "init_value_placeholder";
-                lWaitingStart_bl = true;
-            }
-            else if (lArrayValue_bl)
-            {
-                lInitValue_str = "[";
-                for (var i = 0; i < lValuePropertyNames_arr.length; i++)
-                {
-                    lInitValue_str += lSrc_obj[lSrcPropertyTimestamps_arr[0]][lValuePropertyNames_arr[i]];
-                    (i < (lValuePropertyNames_arr.length - 1)) && lInitValue_str += ", ";
-                }
-                lInitValue_str += "]";
+                lRecieverTypes_arr = l_vsdo.recieverType;
             }
             else
             {
-                lInitValue_str = lSrc_obj[lSrcPropertyTimestamps_arr[0]][lValuePropertyNames_arr[0]];
+                lRecieverTypes_arr.push(l_vsdo.recieverType);
             }
-            lText_str += ", " + lInitValue_str + ",\n\t\t[\n";
-
-            if (lFrameDiff_int > 0)
+            for (var recieverTypeIndex = 0; recieverTypeIndex < lRecieverTypes_arr.length; recieverTypeIndex++)
             {
-                lText_str += "\t\t\t" + lFrameDiff_int + ",\n"
-            }
-
-            var lFrameCount = _secondsToFrames(lLocalBounds_arr[1] - lLocalBounds_arr[0]) + 1;
-            var lTimestampIndex_int = 0;
-            for (var frameIndex = lWaitingStart_bl ? 0 : 1; frameIndex < lFrameCount; frameIndex++)
-            {
-                var lWaitLength_int = 0;
-                while (frameIndex < (lFrameCount - (lWaitingStart_bl ? 1 : 0))) //wait frames if current value equals next one(s)
+                lText_str += "\nl_gut.i_addAnimation(context_obj_placeholder, GUTimeline.";
+                var lRecieverType_str = lRecieverTypes_arr[recieverTypeIndex];
+                var lValuePropertyNames_arr = [];
+                var lArrayValue_bl = l_vsdo.arrayMode;
+                if (l_vsdo.recieverType instanceof Array)
                 {
-                    var lCheckNext_bl = true;
+                    lArrayValue_bl = false;
+                    lValuePropertyNames_arr.push(l_vsdo.names[recieverTypeIndex]);
+                }
+                else
+                {
+                    lValuePropertyNames_arr = l_vsdo.names;
+                }
+
+                lText_str += lRecieverType_str;
+
+                var lSrcPropertyTimestamps_arr = lSrc_obj.reflect.properties;
+                lSrcPropertyTimestamps_arr.splice(lSrcPropertyTimestamps_arr.length - 4, 4);
+                var lLocalBounds_arr = _fLayersPropertiesTimestampsBounds_obj[lLayerName_str][lPropertyName_str];
+                var lFrameDiff_int = _secondsToFrames(lLocalBounds_arr[0] - lGlobalBounds_arr[0]);
+
+                var lInitValue_str = "";
+                var lWaitingStart_bl = false;
+                if (lFrameDiff_int > 0)
+                {
+                    lInitValue_str = "init_value_placeholder";
+                    lWaitingStart_bl = true;
+                }
+                else if (lArrayValue_bl)
+                {
+                    lInitValue_str = "[";
                     for (var i = 0; i < lValuePropertyNames_arr.length; i++)
                     {
-                        var lCompareIndexDiff_int = lWaitingStart_bl ? -1 : 1;
-                        if (!(_areValuesEqual(lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][lValuePropertyNames_arr[i]], 
-                            lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex - lCompareIndexDiff_int]][lValuePropertyNames_arr[i]])))
+                        lInitValue_str += lSrc_obj[lSrcPropertyTimestamps_arr[0]][lValuePropertyNames_arr[i]];
+                        (i < (lValuePropertyNames_arr.length - 1)) && lInitValue_str += ", ";
+                    }
+                    lInitValue_str += "]";
+                }
+                else
+                {
+                    lInitValue_str = lSrc_obj[lSrcPropertyTimestamps_arr[0]][lValuePropertyNames_arr[0]];
+                }
+                lText_str += ", " + lInitValue_str + ",\n\t\t[\n";
+
+                if (lFrameDiff_int > 0)
+                {
+                    lText_str += "\t\t\t" + lFrameDiff_int + ",\n"
+                }
+
+                var lFrameCount = _secondsToFrames(lLocalBounds_arr[1] - lLocalBounds_arr[0]) + 1;
+                var lTimestampIndex_int = 0;
+                for (var frameIndex = lWaitingStart_bl ? 0 : 1; frameIndex < lFrameCount; frameIndex++)
+                {
+                    var lWaitLength_int = 0;
+                    while (frameIndex < (lFrameCount - (lWaitingStart_bl ? 1 : 0))) //wait frames if current value equals next one(s)
+                    {
+                        var lCheckNext_bl = true;
+                        for (var i = 0; i < lValuePropertyNames_arr.length; i++)
                         {
-                            lCheckNext_bl = false;
+                            var lCompareIndexDiff_int = lWaitingStart_bl ? -1 : 1;
+                            if (!(_areValuesEqual(lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][lValuePropertyNames_arr[i]], 
+                                lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex - lCompareIndexDiff_int]][lValuePropertyNames_arr[i]])))
+                            {
+                                lCheckNext_bl = false;
+                                break;
+                            }
+                        }
+                        if (!lCheckNext_bl)
+                        {
                             break;
                         }
+
+                        lWaitLength_int++;
+                        frameIndex++;
                     }
-                    if (!lCheckNext_bl)
+                    if (frameIndex >= lFrameCount)
                     {
                         break;
                     }
 
-                    lWaitLength_int++;
-                    frameIndex++;
-                }
-                (lWaitLength_int > 0) && lText_str += "\t\t\t" + lWaitLength_int + ",\n";
+                    (lWaitLength_int > 0) && lText_str += "\t\t\t" + lWaitLength_int + ",\n";
 
-                lText_str += "\t\t\t[";
-                if (lArrayValue_bl)
-                {
-                    lText_str += "[" + lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][lValuePropertyNames_arr[0]] + ", " 
-                        + lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][lValuePropertyNames_arr[1]] + "], 1";
+                    lText_str += "\t\t\t[";
+                    if (lArrayValue_bl)
+                    {
+                        lText_str += "[" + lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][lValuePropertyNames_arr[0]] + ", " 
+                            + lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][lValuePropertyNames_arr[1]] + "], 1";
+                    }
+                    else
+                    {
+                        lText_str += lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][lValuePropertyNames_arr[0]] + ", 1";
+                    }
+                    lText_str += "]";
+                    (frameIndex < (lFrameCount - 1)) && lText_str += ",";
+                    lText_str += "\n";
+
+                    if (_fWindow.settings.gut.linear_mode.value) //linear interpolation
+                    {
+                        var lLinearGroup_arr = _getNextLinearGroup(lSrc_obj, l_vsdo, frameIndex, lFrameCount);
+                        if (lLinearGroup_arr.length >= 3)
+                        {
+                            frameIndex += lLinearGroup_arr.length - 1;
+                            lText_str += "\t\t\t[";
+                            if (lArrayValue_bl)
+                            {
+                                lText_str += "[" + lLinearGroup_arr[lLinearGroup_arr.length - 1][lValuePropertyNames_arr[0]] + ", " 
+                                    + lLinearGroup_arr[lLinearGroup_arr.length - 1][lValuePropertyNames_arr[1]] + "], " +
+                                    (lLinearGroup_arr.length - 1) + ", GUTimeline.i_EASE_LINEAR";
+                            }
+                            else
+                            {
+                                lText_str += lLinearGroup_arr[lLinearGroup_arr.length - 1][lValuePropertyNames_arr[0]] + ", " +
+                                    (lLinearGroup_arr.length - 1) + ", GUTimeline.i_EASE_LINEAR";
+                            }
+                            lText_str += "]";
+                            (frameIndex < (lFrameCount - 1)) && lText_str += ",";
+                            lText_str += "\n";
+                        }
+                    }
                 }
-                else
-                {
-                    lText_str += lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][lValuePropertyNames_arr[0]] + ", 1";
-                }
-                lText_str += "]";
-                (frameIndex < (lFrameCount - 1)) && lText_str += ",";
-                lText_str += "\n";
+
+                lText_str += "\t\t]\n\t);\n";
             }
-
-            lText_str += "\t\t]\n\t);\n";
         }
 
         _saveAsGUTimeline(lText_str, lLayerName_str);
@@ -453,6 +542,158 @@ _exportAsGUTimeline = function (aSrc_obj)
 
     return true;
 }
+
+_getValuesDescriptionObject = function (aPropertyName_str)
+{
+    var lOut_obj = {};
+    lOut_obj.names = [];
+    lOut_obj.arrayMode = false;
+    lOut_obj.srcName = aPropertyName_str;
+    switch (aPropertyName_str)
+    {
+        case "position":
+            if (_fWindow.settings.gut.xy_mode.value)
+            {
+                lOut_obj.recieverType = "i_SET_XY";
+            }
+            else
+            {
+                lOut_obj.recieverType = [];
+                lOut_obj.recieverType.push("i_SET_X", "i_SET_Y");
+            }
+            lOut_obj.arrayMode = true;
+            lOut_obj.names.push("x", "y");
+            break;
+        case "scale":
+            if (_fWindow.settings.gut.sxsy_mode.value)
+            {
+                lOut_obj.recieverType = "i_SET_SCALE_XY";
+            }
+            else
+            {
+                lOut_obj.recieverType = [];
+                lOut_obj.recieverType.push("i_SET_SCALE_X", "i_SET_SCALE_Y");
+            }
+            lOut_obj.arrayMode = true;
+            lOut_obj.names.push("sx", "sy");
+            break;
+        case "rotation":
+            lOut_obj.recieverType = "i_SET_ROTATION";
+            lOut_obj.names.push("r");
+            break;
+        case "opacity":
+            lOut_obj.recieverType = "i_SET_ALPHA";
+            lOut_obj.names.push("a");
+            break;
+    }
+    return lOut_obj;
+}
+
+//LINEAR INTERPOLATION SECTION...
+_getNextLinearGroup = function (aSrc_obj, a_vsdo, aStartFrameIndex_int, aFrameCount_int)
+{
+    if ((aStartFrameIndex_int + 2) > (aFrameCount_int - 1))
+    {
+        return [];
+    }
+
+    var lMaxError_num = 7;
+    var lSrcPropertyTimestamps_arr = aSrc_obj.reflect.properties;
+    lSrcPropertyTimestamps_arr.splice(lSrcPropertyTimestamps_arr.length - 4, 4);
+    var lGroup_arr = [];
+
+    lGroup_arr.push(aSrc_obj[lSrcPropertyTimestamps_arr[aStartFrameIndex_int]]);
+    lGroup_arr.push(aSrc_obj[lSrcPropertyTimestamps_arr[aStartFrameIndex_int + 1]]);
+    lGroup_arr.push(aSrc_obj[lSrcPropertyTimestamps_arr[aStartFrameIndex_int + 2]]);
+
+    if (!(_isArrayLinear(lGroup_arr, a_vsdo, lMaxError_num)))
+    {
+        return [];
+    }
+
+    for (var frameIndex = aStartFrameIndex_int + 3; frameIndex < (aFrameCount_int - 1); frameIndex++)
+    {
+        lGroup_arr.push(aSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]]);
+
+        if (!(_isArrayLinear(lGroup_arr, a_vsdo, lMaxError_num)))
+        {
+            lGroup_arr.pop();
+            break;
+        }
+    }
+
+    return lGroup_arr;
+}
+
+_getAvgArrayDiff = function (aSrc_arr, a_vsdo, aPropIndex_int)
+{
+    var lDiffSum_num = 0;
+    for (var arrIndex = 0; arrIndex < (aSrc_arr.length - 1); arrIndex++)
+    {
+        lDiffSum_num += aSrc_arr[arrIndex + 1][a_vsdo.names[aPropIndex_int]] - aSrc_arr[arrIndex][a_vsdo.names[aPropIndex_int]];
+    }
+    return lDiffSum_num / (aSrc_arr.length - 1);
+}
+
+_isArrayAscending = function (aSrc_arr, a_vsdo, aPropIndex_int) //ascending returns true, descending return false, unordered returns undefined
+{
+    var lIsAscending_bl = true;
+    var lIsDescending_bl = true;
+
+    for (var arrIndex = 0; arrIndex < (aSrc_arr.length - 1); arrIndex++)
+    {
+        var lFirstValue_num = aSrc_arr[arrIndex][a_vsdo.names[aPropIndex_int]];
+        var lSecondValue_num = aSrc_arr[arrIndex + 1][a_vsdo.names[aPropIndex_int]];
+        if (lFirstValue_num > lSecondValue_num)
+        {
+            lIsAscending_bl = false;
+        }
+        else if (lFirstValue_num < lSecondValue_num)
+        {
+            lIsDescending_bl = false;
+        }
+    }
+
+    if (
+            (!lIsAscending_bl && !lIsDescending_bl)
+            || (lIsAscending_bl && lIsDescending_bl)
+        )
+    {
+        return undefined;
+    }
+
+    return lIsAscending_bl;
+}
+
+_isArrayLinear = function (aSrc_arr, a_vsdo, aMaxError_num)
+{
+    for (var propIndex = 0; propIndex < a_vsdo.names.length; propIndex++)
+    {
+        if (_isArrayAscending(aSrc_arr, a_vsdo, propIndex) === undefined)
+        {
+            return false;
+        }
+        var lAvgDiff_num = Math.abs(_getAvgArrayDiff(aSrc_arr, a_vsdo, propIndex));
+        for (var arrIndex = 0; arrIndex < (aSrc_arr.length - 1); arrIndex++)
+        {
+            var lFirstValue_num = aSrc_arr[arrIndex][a_vsdo.names[propIndex]];
+            var lSecondValue_num = aSrc_arr[arrIndex + 1][a_vsdo.names[propIndex]];
+            var lCurrentDiff_num = Math.abs(lSecondValue_num - lFirstValue_num);
+            var lCurrentError_num = Math.abs(lCurrentDiff_num - lAvgDiff_num) / Math.abs(lAvgDiff_num) * 100;
+            if (Math.abs(lCurrentDiff_num - lAvgDiff_num) < (_MIN_PROPERTY_VALUE[a_vsdo.srcName]))
+            {
+                continue;
+            }
+            if (lCurrentError_num > aMaxError_num)
+            {
+                return false;
+            }
+        }
+    }
+
+    return true;
+}
+//...LINEAR INTERPOLATION SECTION
 
 _exportAsJSON = function (aSrc_obj)
 {
@@ -584,91 +825,64 @@ _exportByGroupsAsJSON = function (aSrc_obj)
     return true;
 }
 
-_copyObjectValue = function (aDest_obj, aSrc_obj, aPropertyName_str)
+_exportObject = function (aSrc_obj) //wrapper for export
 {
-    switch (aPropertyName_str)
+    if (_isGUTimelineMode())
     {
-        case "scale":
-            aDest_obj["sx"] = aSrc_obj["sx"];
-            aDest_obj["sy"] = aSrc_obj["sy"];
-            break;
-        case "position":
-            aDest_obj["x"] = aSrc_obj["x"];
-            aDest_obj["y"] = aSrc_obj["y"];
-            break;
-        case "rotation":
-            aDest_obj["r"] = aSrc_obj["r"];
-            break;
-        case "opacity":
-            aDest_obj["a"] = aSrc_obj["a"];
-            break;
+        return _exportAsGUTimeline(aSrc_obj);
     }
-}
-
-_getLayerTimestampsBounds = function (aLayerName_str)
-{
-    var lProperties_arr = _fSelectedLayersPropertiesNames_arr[aLayerName_str];
-    var lTimestampsBounds_arr = _fLayersPropertiesTimestampsBounds_obj[aLayerName_str][lProperties_arr[0]];
-    var lMin_num = lTimestampsBounds_arr[0];
-    var lMax_num = lTimestampsBounds_arr[1];
-    for (var propIndex = 1; propIndex < lProperties_arr.length; propIndex++)
+    else
     {
-        lTimestampsBounds_arr = _fLayersPropertiesTimestampsBounds_obj[aLayerName_str][lProperties_arr[propIndex]];
-        lMin_num > lTimestampsBounds_arr[0] && lMin_num = lTimestampsBounds_arr[0];
-        lMax_num < lTimestampsBounds_arr[1] && lMax_num = lTimestampsBounds_arr[1];
-    }
-    return [lMin_num, lMax_num];
-}
-
-_groupPropertiesByIntersection = function ()
-{
-    var lGroup_obj = {};
-
-    for (var layerIndex = 0; layerIndex < _fSelectedLayersNames_arr.length; layerIndex++)
-    {
-        var lLayerName_str = _fSelectedLayersNames_arr[layerIndex];
-        !(lGroup_obj.hasOwnProperty(lLayerName_str)) && lGroup_obj[lLayerName_str] = [];
-        var lGroup_arr = lGroup_obj[lLayerName_str];
-        for (var propIndex = 0; propIndex < _fSelectedLayersPropertiesNames_arr[lLayerName_str].length; propIndex++)
+        if (_isGroupMode())
         {
-            var lPropertyName_str = _fSelectedLayersPropertiesNames_arr[lLayerName_str][propIndex];
-            var lPropertyBounds_arr = _fLayersPropertiesTimestampsBounds_obj[lLayerName_str][lPropertyName_str];
-
-            var lAddGroup_bl = true;
-            for (var groupIndex = 0; groupIndex < lGroup_arr.length; groupIndex++)
-            {
-                if (
-                        (lGroup_arr[groupIndex].bounds[1] < lPropertyBounds_arr[0])
-                        || (lGroup_arr[groupIndex].bounds[0] > lPropertyBounds_arr[1])
-                    )
-                {
-                    continue;
-                }
-                else 
-                {
-                    !(lGroup_arr[groupIndex].hasOwnProperty("children")) && lGroup_arr[groupIndex].children = [];
-                    lGroup_arr[groupIndex].children.push(lPropertyName_str);
-                    !(lGroup_arr[groupIndex].hasOwnProperty("bounds")) && lGroup_arr[groupIndex].bounds = [];
-                    lGroup_arr[groupIndex].bounds[0] = Math.min(lGroup_arr[groupIndex].bounds[0], lPropertyBounds_arr[0]);
-                    lGroup_arr[groupIndex].bounds[1] = Math.max(lGroup_arr[groupIndex].bounds[1], lPropertyBounds_arr[1]);
-                    lAddGroup_bl = false;
-                    break;
-                }
-            }
-            if (lAddGroup_bl)
-            {
-                var newGroupIndex = lGroup_arr.length;
-                lGroup_arr.push({});
-                lGroup_arr[newGroupIndex].bounds = lPropertyBounds_arr;
-                lGroup_arr[newGroupIndex].children = [];
-                lGroup_arr[newGroupIndex].children.push(lPropertyName_str);
-            }
+            return _exportByGroupsAsJSON(aSrc_obj);
+        }
+        else
+        {
+            return _exportAsJSON(aSrc_obj);
         }
     }
-
-    _fLayersPropertiesGroup_obj = lGroup_obj;
 }
-//...JSON EXPORT SECTION
+
+_saveAsJSON = function (aSrc_obj, aFileName_str)
+{
+    var lOutput_file = new File(_getUrl(aFileName_str + ".json"));
+    if (lOutput_file.open("w")) 
+    {
+        lOutput_file.encoding = "UTF-8";
+        var lContent = JSON.stringify(aSrc_obj, undefined, 2);
+        lOutput_file.write(lContent);
+        lOutput_file.close();
+        return true;
+    }
+    return false;
+}
+
+_saveAsGUTimeline = function (aText_str, aFileName_str)
+{
+    var lOutput_file = new File(_getUrl(aFileName_str + "_gut.js"));
+    if (lOutput_file.open("w")) 
+    {
+        lOutput_file.encoding = "UTF-8";
+        lOutput_file.write(aText_str);
+        lOutput_file.close();
+        return true;
+    }
+    return false;
+}
+
+_getUrl = function (aURL_str) //gets a URL based on the file path and the name 
+{
+    var lProjectName_str = app.project.file.name.replace(".aep", "");
+    var lCompName_str = app.project.activeItem.name;
+    var lFileName_str = aURL_str || lProjectName_str + "_"+ lCompName_str + ".json";
+    lFileName_str = lFileName_str.replace(/\s/g, "");
+    var lPath_str = app.project.file.parent.absoluteURI + "/Export/";
+    var lExport_folder = new Folder(lPath_str);
+    !(lExport_folder.exists) && lExport_folder.create();
+    return lPath_str + lFileName_str;
+}
+//...EXPORT SECTION
 
 //EXEC SECTION...
 _buildGUI();
