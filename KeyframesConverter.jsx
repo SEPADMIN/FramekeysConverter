@@ -19,6 +19,7 @@ var _MIN_PROPERTY_VALUE = {
 var _fWindow = null;
 var _fSelectedLayersIndexes_arr = null;
 var _fSelectedLayersNames_arr = null;
+var _fSelectedPropertiesNames_arr = null;
 var _fLayerObjectsNames_arr = null;
 var _fLayersPropertiesTimestampsBounds_obj = null;
 var _fLayersTimestamps_obj = null;
@@ -70,7 +71,7 @@ _buildGUI = function ()
     l_window.settings.orientation = "row";
 
     l_window.settings.properties = l_window.settings.add("panel", undefined, "Properties", {name:"properties"});
-    l_window.settings.properties.alignChildren = ["fill", "fill"];
+    l_window.settings.properties.alignChildren = ["fill", "top"];
 
     for (var i = 0; i < _PROPERTIES.length; i++)
     {
@@ -118,8 +119,33 @@ _buildGUI = function ()
     l_window.settings.gut.separator.preferredSize = [0, 0];
     l_window.settings.gut.linear_mode = l_window.settings.gut.add("checkbox", undefined, "Linear interpolation", {name:"linear_mode"});
     l_window.settings.gut.linear_mode.value = true;
+    l_window.settings.gut.max_error_group = l_window.settings.gut.add("group", undefined, {name:"max_error_group"});
+    l_window.settings.gut.max_error_group.orientation = "row";
+    l_window.settings.gut.max_error_group.add("statictext", undefined, "Max group error %:");
+    l_window.settings.gut.max_error_group.add("edittext", undefined, "7", {name:"max_error"});
+    l_window.settings.gut.max_error_group.max_error.characters = 2;
 
-    var lConvertBtn = l_window.add("button", undefined, 'Convert', {name:"ok"}); 
+    l_window.settings.gut.linear_mode.onClick = function ()
+    {
+        l_window.settings.gut.max_error_group.enabled = l_window.settings.gut.linear_mode.value;
+    }
+
+    l_window.btns_group = l_window.add("group", undefined, {name:"btns_group"});
+    l_window.btns_group.orientation = "row";
+    l_window.btns_group.add("button", undefined, 'Convert', {name:"ok"});
+    l_window.btns_group.add("button", undefined, 'Cancel', {name:"cancel"}); 
+
+    l_window.btns_group.ok.onClick = function ()
+    {
+        l_window.close();
+        return _exportObject(_getAnimationsObject());
+    }
+
+    l_window.btns_group.cancel.onClick = function ()
+    {
+        l_window.close();
+        return false;
+    }
 
     l_window.show(); 
 }
@@ -160,12 +186,49 @@ log = function (a_str) //log wrapper
 _getProperties = function () //specify properties to export
 {
     var lProperties_arr = [];
-    var lWinOptions_arr = _fWindow.children["settings"].children["properties"];
+    var lWinOptions_arr = _fWindow.settings.properties;
     for (var i = 0; i < _PROPERTIES.length; i++) 
     {
         lWinOptions_arr.children["property_" + i].value && lProperties_arr.push(_PROPERTIES[i]);
     }
     return lProperties_arr;
+}
+
+_getPropertiesGUT = function ()
+{
+    var lProperties_obj = {};
+    lProperties_obj.srcNames = _fSelectedPropertiesNames_arr;
+    lProperties_obj.names = [];
+    lProperties_obj.mapping = [];
+    for (var i = 0; i < lProperties_obj.srcNames.length; i++) 
+    {
+        if (
+                (lProperties_obj.srcNames[i] === "scale")
+                && (!(_fWindow.settings.gut.sxsy_mode.value))
+            )
+        {
+            lProperties_obj.names.push("scale_x");
+            lProperties_obj.mapping.push(i);
+            lProperties_obj.names.push("scale_y");
+            lProperties_obj.mapping.push(i);
+        }
+        else if (
+                    (lProperties_obj.srcNames[i] === "position")
+                    && (!(_fWindow.settings.gut.xy_mode.value))
+                )
+        {
+            lProperties_obj.names.push("position_x");
+            lProperties_obj.mapping.push(i);
+            lProperties_obj.names.push("position_y");
+            lProperties_obj.mapping.push(i);
+        }
+        else 
+        {
+            lProperties_obj.names.push(lProperties_obj.srcNames[i]);
+            lProperties_obj.mapping.push(i);
+        }
+    }
+    return lProperties_obj;
 }
 
 _secondsToFrames = function (aSeconds_num)
@@ -186,7 +249,7 @@ _getAnimationsObject = function ()
 
     var lTmp_obj = {};
     _fSelectedLayersNames_arr = [];
-    _fSelectedLayersPropertiesNames_arr = {};
+    _fSelectedPropertiesNames_arr = [];
     _fLayersPropertiesTimestampsBounds_obj = {};
     _fLayerObjectsNames_arr = [];
 
@@ -202,7 +265,6 @@ _getAnimationsObject = function ()
         var lLayerName_str = lLayer.name.replace(/\s/g, "_").toLowerCase();
         _fSelectedLayersNames_arr.push(lLayerName_str);
         _fLayerObjectsNames_arr.push(lLayer.name);
-        _fSelectedLayersPropertiesNames_arr[lLayerName_str] = [];
         _fLayersPropertiesTimestampsBounds_obj[lLayerName_str] = {};
         lTmp_obj[lLayerName_str] = {};
 
@@ -218,7 +280,7 @@ _getAnimationsObject = function ()
 
             var lPropertyName_str = lProperties_arr[propIndex];
             var lValues_arr = {};
-            _fSelectedLayersPropertiesNames_arr[lLayerName_str].push(lPropertyName_str);
+            _fSelectedPropertiesNames_arr.push(lPropertyName_str);
             _fLayersPropertiesTimestampsBounds_obj[lLayerName_str][lPropertyName_str] = new Array(2);
             var lTimestampsBounds_arr = _fLayersPropertiesTimestampsBounds_obj[lLayerName_str][lPropertyName_str];
 
@@ -317,7 +379,7 @@ _copyObjectValue = function (aDest_obj, aSrc_obj, aPropertyName_str)
 
 _getLayerTimestampsBounds = function (aLayerName_str)
 {
-    var lProperties_arr = _fSelectedLayersPropertiesNames_arr[aLayerName_str];
+    var lProperties_arr = _fSelectedPropertiesNames_arr;
     var lTimestampsBounds_arr = _fLayersPropertiesTimestampsBounds_obj[aLayerName_str][lProperties_arr[0]];
     var lMin_num = lTimestampsBounds_arr[0];
     var lMax_num = lTimestampsBounds_arr[1];
@@ -339,9 +401,9 @@ _groupPropertiesByIntersection = function ()
         var lLayerName_str = _fSelectedLayersNames_arr[layerIndex];
         !(lGroup_obj.hasOwnProperty(lLayerName_str)) && lGroup_obj[lLayerName_str] = [];
         var lGroup_arr = lGroup_obj[lLayerName_str];
-        for (var propIndex = 0; propIndex < _fSelectedLayersPropertiesNames_arr[lLayerName_str].length; propIndex++)
+        for (var propIndex = 0; propIndex < _fSelectedPropertiesNames_arr.length; propIndex++)
         {
-            var lPropertyName_str = _fSelectedLayersPropertiesNames_arr[lLayerName_str][propIndex];
+            var lPropertyName_str = _fSelectedPropertiesNames_arr[propIndex];
             var lPropertyBounds_arr = _fLayersPropertiesTimestampsBounds_obj[lLayerName_str][lPropertyName_str];
 
             var lAddGroup_bl = true;
@@ -383,158 +445,136 @@ _groupPropertiesByIntersection = function ()
 //EXPORT SECTION...
 _exportAsGUTimeline = function (aSrc_obj)
 {
-    if (!(_fSelectedLayersNames_arr))
+    if (
+            !(_fSelectedLayersNames_arr)
+            || !(_fSelectedPropertiesNames_arr)
+        )
     {
         return undefined;
     }
 
+    var lProperties_obj = _getPropertiesGUT();
     for (var layerIndex = 0; layerIndex < _fSelectedLayersNames_arr.length; layerIndex++)
     {
         var lLayerName_str = _fSelectedLayersNames_arr[layerIndex];
-        var lProperties_arr = _fSelectedLayersPropertiesNames_arr[lLayerName_str];
         var lGlobalBounds_arr = _getLayerTimestampsBounds(lLayerName_str);
         var lText_str = "var l_gut = new GUTimeline();\n";
 
-        for (var propIndex = 0; propIndex < lProperties_arr.length; propIndex++)
+        for (var propIndex = 0; propIndex < lProperties_obj.names.length; propIndex++)
         {
-            var lPropertyName_str = lProperties_arr[propIndex];
-            var lSrc_obj = aSrc_obj[lLayerName_str][lPropertyName_str];
+            lText_str += "\nl_gut.i_addAnimation(context_obj_placeholder, GUTimeline.";
 
-            var l_vsdo = _getValuesDescriptionObject(lPropertyName_str);
-            var lRecieverTypes_arr = [];
-            if (l_vsdo.recieverType instanceof Array)
+            var lPropertyName_str = lProperties_obj.srcNames[lProperties_obj.mapping[propIndex]];
+            var lSrc_obj = aSrc_obj[lLayerName_str][lPropertyName_str];
+            var l_vsdo = _getValuesDescriptionObject(lProperties_obj.names[propIndex]);
+
+            lText_str += l_vsdo.recieverType;
+
+            var lSrcPropertyTimestamps_arr = lSrc_obj.reflect.properties;
+            lSrcPropertyTimestamps_arr.splice(lSrcPropertyTimestamps_arr.length - 4, 4);
+            var lLocalBounds_arr = _fLayersPropertiesTimestampsBounds_obj[lLayerName_str][lPropertyName_str];
+            var lFrameDiff_int = _secondsToFrames(lLocalBounds_arr[0] - lGlobalBounds_arr[0]);
+
+            var lInitValue_str = "";
+            var lWaitingStart_bl = false;
+            if (lFrameDiff_int > 0)
             {
-                lRecieverTypes_arr = l_vsdo.recieverType;
+                lInitValue_str = "init_value_placeholder";
+                lWaitingStart_bl = true;
+            }
+            else if (l_vsdo.arrayMode)
+            {
+                lInitValue_str = "[";
+                for (var i = 0; i < l_vsdo.names.length; i++)
+                {
+                    lInitValue_str += lSrc_obj[lSrcPropertyTimestamps_arr[0]][l_vsdo.names[i]];
+                    (i < (l_vsdo.names.length - 1)) && lInitValue_str += ", ";
+                }
+                lInitValue_str += "]";
             }
             else
             {
-                lRecieverTypes_arr.push(l_vsdo.recieverType);
+                lInitValue_str = lSrc_obj[lSrcPropertyTimestamps_arr[0]][l_vsdo.names[0]];
             }
-            for (var recieverTypeIndex = 0; recieverTypeIndex < lRecieverTypes_arr.length; recieverTypeIndex++)
+            lText_str += ", " + lInitValue_str + ",\n\t\t[\n";
+
+            if (lFrameDiff_int > 0)
             {
-                lText_str += "\nl_gut.i_addAnimation(context_obj_placeholder, GUTimeline.";
-                var lRecieverType_str = lRecieverTypes_arr[recieverTypeIndex];
-                var lValuePropertyNames_arr = [];
-                var lArrayValue_bl = l_vsdo.arrayMode;
-                if (l_vsdo.recieverType instanceof Array)
-                {
-                    lArrayValue_bl = false;
-                    lValuePropertyNames_arr.push(l_vsdo.names[recieverTypeIndex]);
-                }
-                else
-                {
-                    lValuePropertyNames_arr = l_vsdo.names;
-                }
+                lText_str += "\t\t\t" + lFrameDiff_int + ",\n"
+            }
 
-                lText_str += lRecieverType_str;
-
-                var lSrcPropertyTimestamps_arr = lSrc_obj.reflect.properties;
-                lSrcPropertyTimestamps_arr.splice(lSrcPropertyTimestamps_arr.length - 4, 4);
-                var lLocalBounds_arr = _fLayersPropertiesTimestampsBounds_obj[lLayerName_str][lPropertyName_str];
-                var lFrameDiff_int = _secondsToFrames(lLocalBounds_arr[0] - lGlobalBounds_arr[0]);
-
-                var lInitValue_str = "";
-                var lWaitingStart_bl = false;
-                if (lFrameDiff_int > 0)
+            var lFrameCount = _secondsToFrames(lLocalBounds_arr[1] - lLocalBounds_arr[0]) + 1;
+            var lTimestampIndex_int = 0;
+            for (var frameIndex = lWaitingStart_bl ? 0 : 1; frameIndex < lFrameCount; frameIndex++)
+            {
+                var lWaitLength_int = 0;
+                while (frameIndex < (lFrameCount - (lWaitingStart_bl ? 1 : 0))) //wait frames if current value equals next one(s)
                 {
-                    lInitValue_str = "init_value_placeholder";
-                    lWaitingStart_bl = true;
-                }
-                else if (lArrayValue_bl)
-                {
-                    lInitValue_str = "[";
-                    for (var i = 0; i < lValuePropertyNames_arr.length; i++)
+                    var lCheckNext_bl = true;
+                    for (var i = 0; i < l_vsdo.names.length; i++)
                     {
-                        lInitValue_str += lSrc_obj[lSrcPropertyTimestamps_arr[0]][lValuePropertyNames_arr[i]];
-                        (i < (lValuePropertyNames_arr.length - 1)) && lInitValue_str += ", ";
-                    }
-                    lInitValue_str += "]";
-                }
-                else
-                {
-                    lInitValue_str = lSrc_obj[lSrcPropertyTimestamps_arr[0]][lValuePropertyNames_arr[0]];
-                }
-                lText_str += ", " + lInitValue_str + ",\n\t\t[\n";
-
-                if (lFrameDiff_int > 0)
-                {
-                    lText_str += "\t\t\t" + lFrameDiff_int + ",\n"
-                }
-
-                var lFrameCount = _secondsToFrames(lLocalBounds_arr[1] - lLocalBounds_arr[0]) + 1;
-                var lTimestampIndex_int = 0;
-                for (var frameIndex = lWaitingStart_bl ? 0 : 1; frameIndex < lFrameCount; frameIndex++)
-                {
-                    var lWaitLength_int = 0;
-                    while (frameIndex < (lFrameCount - (lWaitingStart_bl ? 1 : 0))) //wait frames if current value equals next one(s)
-                    {
-                        var lCheckNext_bl = true;
-                        for (var i = 0; i < lValuePropertyNames_arr.length; i++)
+                        var lCompareIndexDiff_int = lWaitingStart_bl ? -1 : 1;
+                        if (!(_areValuesEqual(lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][l_vsdo.names[i]], 
+                            lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex - lCompareIndexDiff_int]][l_vsdo.names[i]])))
                         {
-                            var lCompareIndexDiff_int = lWaitingStart_bl ? -1 : 1;
-                            if (!(_areValuesEqual(lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][lValuePropertyNames_arr[i]], 
-                                lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex - lCompareIndexDiff_int]][lValuePropertyNames_arr[i]])))
-                            {
-                                lCheckNext_bl = false;
-                                break;
-                            }
-                        }
-                        if (!lCheckNext_bl)
-                        {
+                            lCheckNext_bl = false;
                             break;
                         }
-
-                        lWaitLength_int++;
-                        frameIndex++;
                     }
-                    if (frameIndex >= lFrameCount)
+                    if (!lCheckNext_bl)
                     {
                         break;
                     }
 
-                    (lWaitLength_int > 0) && lText_str += "\t\t\t" + lWaitLength_int + ",\n";
-
-                    lText_str += "\t\t\t[";
-                    if (lArrayValue_bl)
-                    {
-                        lText_str += "[" + lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][lValuePropertyNames_arr[0]] + ", " 
-                            + lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][lValuePropertyNames_arr[1]] + "], 1";
-                    }
-                    else
-                    {
-                        lText_str += lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][lValuePropertyNames_arr[0]] + ", 1";
-                    }
-                    lText_str += "]";
-                    (frameIndex < (lFrameCount - 1)) && lText_str += ",";
-                    lText_str += "\n";
-
-                    if (_fWindow.settings.gut.linear_mode.value) //linear interpolation
-                    {
-                        var lLinearGroup_arr = _getNextLinearGroup(lSrc_obj, l_vsdo, frameIndex, lFrameCount);
-                        if (lLinearGroup_arr.length >= 3)
-                        {
-                            frameIndex += lLinearGroup_arr.length - 1;
-                            lText_str += "\t\t\t[";
-                            if (lArrayValue_bl)
-                            {
-                                lText_str += "[" + lLinearGroup_arr[lLinearGroup_arr.length - 1][lValuePropertyNames_arr[0]] + ", " 
-                                    + lLinearGroup_arr[lLinearGroup_arr.length - 1][lValuePropertyNames_arr[1]] + "], " +
-                                    (lLinearGroup_arr.length - 1) + ", GUTimeline.i_EASE_LINEAR";
-                            }
-                            else
-                            {
-                                lText_str += lLinearGroup_arr[lLinearGroup_arr.length - 1][lValuePropertyNames_arr[0]] + ", " +
-                                    (lLinearGroup_arr.length - 1) + ", GUTimeline.i_EASE_LINEAR";
-                            }
-                            lText_str += "]";
-                            (frameIndex < (lFrameCount - 1)) && lText_str += ",";
-                            lText_str += "\n";
-                        }
-                    }
+                    lWaitLength_int++;
+                    frameIndex++;
+                }
+                if (frameIndex >= lFrameCount)
+                {
+                    break;
                 }
 
-                lText_str += "\t\t]\n\t);\n";
+                (lWaitLength_int > 0) && lText_str += "\t\t\t" + lWaitLength_int + ",\n";
+
+                lText_str += "\t\t\t[";
+                if (l_vsdo.arrayMode)
+                {
+                    lText_str += "[" + lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][l_vsdo.names[0]] + ", " 
+                        + lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][l_vsdo.names[1]] + "], 1";
+                }
+                else
+                {
+                    lText_str += lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][l_vsdo.names[0]] + ", 1";
+                }
+                lText_str += "]";
+                (frameIndex < (lFrameCount - 1)) && lText_str += ",";
+                lText_str += "\n";
+
+                if (_fWindow.settings.gut.linear_mode.value) //linear interpolation
+                {
+                    var lLinearGroup_arr = _getNextLinearGroup(lSrc_obj, l_vsdo, frameIndex, lFrameCount);
+                    if (lLinearGroup_arr.length >= 3)
+                    {
+                        frameIndex += lLinearGroup_arr.length - 1;
+                        var lLinearGroupText_str = "\t\t\t[";
+
+                        (l_vsdo.arrayMode) && lLinearGroupText_str += "[";
+                        for (var i = 0; i < l_vsdo.names.length; i++)
+                        {
+                            lLinearGroupText_str += lLinearGroup_arr[lLinearGroup_arr.length - 1][l_vsdo.names[i]];
+                            (i < (l_vsdo.names.length - 1)) && lLinearGroupText_str += ", ";
+                        }
+                        (l_vsdo.arrayMode) && lLinearGroupText_str += "]";
+
+                        lLinearGroupText_str += ", GUTimeline.i_EASE_LINEAR";
+                        lText_str += lLinearGroupText_str;
+                        (frameIndex < (lFrameCount - 1)) && lText_str += ",";
+                        lText_str += "\n";
+                    }
+                }
             }
+
+            lText_str += "\t\t]\n\t);\n";
         }
 
         _saveAsGUTimeline(lText_str, lLayerName_str);
@@ -552,30 +592,30 @@ _getValuesDescriptionObject = function (aPropertyName_str)
     switch (aPropertyName_str)
     {
         case "position":
-            if (_fWindow.settings.gut.xy_mode.value)
-            {
-                lOut_obj.recieverType = "i_SET_XY";
-            }
-            else
-            {
-                lOut_obj.recieverType = [];
-                lOut_obj.recieverType.push("i_SET_X", "i_SET_Y");
-            }
+            lOut_obj.recieverType = "i_SET_XY";
             lOut_obj.arrayMode = true;
             lOut_obj.names.push("x", "y");
             break;
         case "scale":
-            if (_fWindow.settings.gut.sxsy_mode.value)
-            {
-                lOut_obj.recieverType = "i_SET_SCALE_XY";
-            }
-            else
-            {
-                lOut_obj.recieverType = [];
-                lOut_obj.recieverType.push("i_SET_SCALE_X", "i_SET_SCALE_Y");
-            }
+            lOut_obj.recieverType = "i_SET_SCALE_XY";
             lOut_obj.arrayMode = true;
             lOut_obj.names.push("sx", "sy");
+            break;
+        case "position_x":
+            lOut_obj.recieverType = "i_SET_X";
+            lOut_obj.names.push("x");
+            break;
+        case "position_y":
+            lOut_obj.recieverType = "i_SET_Y";
+            lOut_obj.names.push("y");
+            break;
+        case "scale_x":
+            lOut_obj.recieverType = "i_SET_SCALE_X";
+            lOut_obj.names.push("sx");
+            break;
+        case "scale_y":
+            lOut_obj.recieverType = "i_SET_SCALE_Y";
+            lOut_obj.names.push("sy");
             break;
         case "rotation":
             lOut_obj.recieverType = "i_SET_ROTATION";
@@ -597,7 +637,7 @@ _getNextLinearGroup = function (aSrc_obj, a_vsdo, aStartFrameIndex_int, aFrameCo
         return [];
     }
 
-    var lMaxError_num = 7;
+    var lMaxError_num = _getMaxError();
     var lSrcPropertyTimestamps_arr = aSrc_obj.reflect.properties;
     lSrcPropertyTimestamps_arr.splice(lSrcPropertyTimestamps_arr.length - 4, 4);
     var lGroup_arr = [];
@@ -693,6 +733,11 @@ _isArrayLinear = function (aSrc_arr, a_vsdo, aMaxError_num)
 
     return true;
 }
+
+_getMaxError = function ()
+{
+    return Number(_fWindow.settings.gut.max_error_group.max_error.text);
+}
 //...LINEAR INTERPOLATION SECTION
 
 _exportAsJSON = function (aSrc_obj)
@@ -706,7 +751,7 @@ _exportAsJSON = function (aSrc_obj)
     {
         var lDest_obj = {};
         var lLayerName_str = _fSelectedLayersNames_arr[layerIndex];
-        var lProperties_arr = _fSelectedLayersPropertiesNames_arr[lLayerName_str];
+        var lProperties_arr = _fSelectedPropertiesNames_arr;
         lDest_obj[lLayerName_str] = {};
         lDest_obj[lLayerName_str]["samples"] = [];
         var lData_obj = lDest_obj[lLayerName_str]["samples"];
@@ -884,7 +929,4 @@ _getUrl = function (aURL_str) //gets a URL based on the file path and the name
 }
 //...EXPORT SECTION
 
-//EXEC SECTION...
 _buildGUI();
-_exportObject(_getAnimationsObject());
-//...EXEC SECTION
