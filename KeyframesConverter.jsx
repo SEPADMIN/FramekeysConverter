@@ -583,7 +583,7 @@ _exportAsGUTimeline = function (aSrc_obj)
                         }
                         (l_vsdo.arrayMode) && lLinearGroupText_str += "]";
 
-                        lLinearGroupText_str += ", GUTimeline.i_EASE_LINEAR";
+                        lLinearGroupText_str += ", GUTimeline.i_EASE_LINEAR]";
                         lText_str += lLinearGroupText_str;
                         (frameIndex < (lFrameCount - 1)) && lText_str += ",";
                         lText_str += "\n";
@@ -906,15 +906,26 @@ _exportObject = function (aSrc_obj) //wrapper for export
 _saveAsJSON = function (aSrc_obj, aFileName_str)
 {
     var lOutput_file = new File(_getUrl(aFileName_str + ".json"));
+    var lTest_file = new File(_getUrl(aFileName_str + "_test.json"));
     if (lOutput_file.open("w")) 
     {
         lOutput_file.encoding = "UTF-8";
         var lContent = JSON.stringify(aSrc_obj, undefined, 2);
+        lContent = _formatJSON(lContent);
         lOutput_file.write(lContent);
         lOutput_file.close();
         return true;
     }
     return false;
+}
+
+_formatJSON = function (aSrc_str)
+{
+    var l_str = aSrc_str.replace(/{\s*\n+\s*(["].*["]:\s*\d)/g, "$1");
+    l_str = l_str.replace(/(.*)[,]\s*\n\s*["]/g, "$1,\"");
+    l_str = l_str.replace(/(\d)\s*\n\s*}/g, "$1}");
+    l_str = l_str.replace(/\s*:\s*/g, ":");
+    return l_str;
 }
 
 _saveAsGUTimeline = function (aText_str, aFileName_str)
