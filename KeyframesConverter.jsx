@@ -19,7 +19,7 @@ var _MIN_PROPERTY_VALUE = {
 var _fWindow = null;
 var _fSelectedLayersIndexes_arr = null;
 var _fSelectedLayersNames_arr = null;
-var _fSelectedPropertiesNames_arr = null;
+var _fSelectedPropertiesNames_obj = null;
 var _fLayerObjectsNames_arr = null;
 var _fLayersPropertiesTimestampsBounds_obj = null;
 var _fLayersTimestamps_obj = null;
@@ -194,10 +194,10 @@ _getProperties = function () //specify properties to export
     return lProperties_arr;
 }
 
-_getPropertiesGUT = function ()
+_getPropertiesGUT = function (aLayerName_str)
 {
     var lProperties_obj = {};
-    lProperties_obj.srcNames = _fSelectedPropertiesNames_arr;
+    lProperties_obj.srcNames = _fSelectedPropertiesNames_obj[aLayerName_str];
     lProperties_obj.names = [];
     lProperties_obj.mapping = [];
     for (var i = 0; i < lProperties_obj.srcNames.length; i++) 
@@ -249,7 +249,7 @@ _getAnimationsObject = function ()
 
     var lTmp_obj = {};
     _fSelectedLayersNames_arr = [];
-    _fSelectedPropertiesNames_arr = [];
+    _fSelectedPropertiesNames_obj = {};
     _fLayersPropertiesTimestampsBounds_obj = {};
     _fLayerObjectsNames_arr = [];
 
@@ -264,6 +264,7 @@ _getAnimationsObject = function ()
 
         var lLayerName_str = lLayer.name.replace(/\s/g, "_").toLowerCase();
         _fSelectedLayersNames_arr.push(lLayerName_str);
+        _fSelectedPropertiesNames_obj[lLayerName_str] = [];
         _fLayerObjectsNames_arr.push(lLayer.name);
         _fLayersPropertiesTimestampsBounds_obj[lLayerName_str] = {};
         lTmp_obj[lLayerName_str] = {};
@@ -280,7 +281,7 @@ _getAnimationsObject = function ()
 
             var lPropertyName_str = lProperties_arr[propIndex];
             var lValues_arr = {};
-            _fSelectedPropertiesNames_arr.push(lPropertyName_str);
+            _fSelectedPropertiesNames_obj[lLayerName_str].push(lPropertyName_str);
             _fLayersPropertiesTimestampsBounds_obj[lLayerName_str][lPropertyName_str] = new Array(2);
             var lTimestampsBounds_arr = _fLayersPropertiesTimestampsBounds_obj[lLayerName_str][lPropertyName_str];
 
@@ -379,7 +380,7 @@ _copyObjectValue = function (aDest_obj, aSrc_obj, aPropertyName_str)
 
 _getLayerTimestampsBounds = function (aLayerName_str)
 {
-    var lProperties_arr = _fSelectedPropertiesNames_arr;
+    var lProperties_arr = _fSelectedPropertiesNames_obj[aLayerName_str];
     var lTimestampsBounds_arr = _fLayersPropertiesTimestampsBounds_obj[aLayerName_str][lProperties_arr[0]];
     var lMin_num = lTimestampsBounds_arr[0];
     var lMax_num = lTimestampsBounds_arr[1];
@@ -401,9 +402,9 @@ _groupPropertiesByIntersection = function ()
         var lLayerName_str = _fSelectedLayersNames_arr[layerIndex];
         !(lGroup_obj.hasOwnProperty(lLayerName_str)) && lGroup_obj[lLayerName_str] = [];
         var lGroup_arr = lGroup_obj[lLayerName_str];
-        for (var propIndex = 0; propIndex < _fSelectedPropertiesNames_arr.length; propIndex++)
+        for (var propIndex = 0; propIndex < _fSelectedPropertiesNames_obj[lLayerName_str].length; propIndex++)
         {
-            var lPropertyName_str = _fSelectedPropertiesNames_arr[propIndex];
+            var lPropertyName_str = _fSelectedPropertiesNames_obj[lLayerName_str][propIndex];
             var lPropertyBounds_arr = _fLayersPropertiesTimestampsBounds_obj[lLayerName_str][lPropertyName_str];
 
             var lAddGroup_bl = true;
@@ -440,23 +441,40 @@ _groupPropertiesByIntersection = function ()
 
     _fLayersPropertiesGroup_obj = lGroup_obj;
 }
+
+_getObjectProperties = function (aSrc_obj)
+{
+    var l_arr = aSrc_obj.reflect.properties;
+    if (l_arr.length > 4)
+    {
+        l_arr.splice(l_arr.length - 4, 4);
+        return l_arr;
+    }
+    else
+    {
+        return [];
+    }
+}
 //...FUNCTION SECTION
 
 //EXPORT SECTION...
 _exportAsGUTimeline = function (aSrc_obj)
 {
-    if (
-            !(_fSelectedLayersNames_arr)
-            || !(_fSelectedPropertiesNames_arr)
-        )
+    if (!(_fSelectedLayersNames_arr))
     {
         return undefined;
     }
 
-    var lProperties_obj = _getPropertiesGUT();
     for (var layerIndex = 0; layerIndex < _fSelectedLayersNames_arr.length; layerIndex++)
     {
         var lLayerName_str = _fSelectedLayersNames_arr[layerIndex];
+        var lProperties_obj = _getPropertiesGUT(lLayerName_str);
+
+        if (!(_fSelectedPropertiesNames_obj[lLayerName_str]))
+        {
+            continue;
+        }
+
         var lGlobalBounds_arr = _getLayerTimestampsBounds(lLayerName_str);
         var lText_str = "var l_gut = new GUTimeline();\n";
 
@@ -470,8 +488,7 @@ _exportAsGUTimeline = function (aSrc_obj)
 
             lText_str += l_vsdo.recieverType;
 
-            var lSrcPropertyTimestamps_arr = lSrc_obj.reflect.properties;
-            lSrcPropertyTimestamps_arr.splice(lSrcPropertyTimestamps_arr.length - 4, 4);
+            var lSrcPropertyTimestamps_arr = _getObjectProperties(lSrc_obj);
             var lLocalBounds_arr = _fLayersPropertiesTimestampsBounds_obj[lLayerName_str][lPropertyName_str];
             var lFrameDiff_int = _secondsToFrames(lLocalBounds_arr[0] - lGlobalBounds_arr[0]);
 
@@ -638,8 +655,7 @@ _getNextLinearGroup = function (aSrc_obj, a_vsdo, aStartFrameIndex_int, aFrameCo
     }
 
     var lMaxError_num = _getMaxError();
-    var lSrcPropertyTimestamps_arr = aSrc_obj.reflect.properties;
-    lSrcPropertyTimestamps_arr.splice(lSrcPropertyTimestamps_arr.length - 4, 4);
+    var lSrcPropertyTimestamps_arr = _getObjectProperties(aSrc_obj);
     var lGroup_arr = [];
 
     lGroup_arr.push(aSrc_obj[lSrcPropertyTimestamps_arr[aStartFrameIndex_int]]);
@@ -751,7 +767,7 @@ _exportAsJSON = function (aSrc_obj)
     {
         var lDest_obj = {};
         var lLayerName_str = _fSelectedLayersNames_arr[layerIndex];
-        var lProperties_arr = _fSelectedPropertiesNames_arr;
+        var lProperties_arr = _fSelectedPropertiesNames_obj[lLayerName_str];
         lDest_obj[lLayerName_str] = {};
         lDest_obj[lLayerName_str]["samples"] = [];
         var lData_obj = lDest_obj[lLayerName_str]["samples"];
@@ -777,8 +793,7 @@ _exportAsJSON = function (aSrc_obj)
                 _copyObjectValue(lData_obj[frameIndex], lSrc_obj[lLocalBounds_arr[0]], lPropertyName_str);
             }
 
-            var lSrcPropertyTimestamps_arr = lSrc_obj.reflect.properties;
-            lSrcPropertyTimestamps_arr.splice(lSrcPropertyTimestamps_arr.length - 4, 4);
+            var lSrcPropertyTimestamps_arr = _getObjectProperties(lSrc_obj);
             var lTimestampIndex_int = 0;
             for (var frameIndex = lFrameDiff_int; frameIndex < lFrameDiff_int + lSrcPropertyTimestamps_arr.length; frameIndex++)
             {
@@ -841,8 +856,7 @@ _exportByGroupsAsJSON = function (aSrc_obj)
                     _copyObjectValue(lData_obj[frameIndex], lSrc_obj[lLocalBounds_arr[0]], lPropertyName_str);
                 }
 
-                var lSrcPropertyTimestamps_arr = lSrc_obj.reflect.properties;
-                lSrcPropertyTimestamps_arr.splice(lSrcPropertyTimestamps_arr.length - 4, 4);
+                var lSrcPropertyTimestamps_arr = _getObjectProperties(lSrc_obj);
                 var lTimestampIndex_int = 0;
                 for (var frameIndex = lFrameDiff_int; frameIndex < lFrameDiff_int + lSrcPropertyTimestamps_arr.length; frameIndex++)
                 {
