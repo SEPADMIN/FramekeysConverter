@@ -318,7 +318,7 @@ _getAnimationsObject = function ()
                     case "rotation":
                         lValues_arr[lTimestamp_num]["r"] = Number((lValue * Math.PI / 180).toFixed(2));
                         break;
-                    case "alpha":
+                    case "opacity":
                         lValues_arr[lTimestamp_num]["a"] = Number((lValue / 100).toFixed(2));
                         break;
                 }
