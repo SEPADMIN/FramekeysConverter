@@ -583,6 +583,7 @@ _exportAsGUTimeline = function (aSrc_obj)
                         }
                         (l_vsdo.arrayMode) && lLinearGroupText_str += "]";
 
+                        lLinearGroupText_str += ", " + (lLinearGroup_arr.length - 1);
                         lLinearGroupText_str += ", GUTimeline.i_EASE_LINEAR]";
                         lText_str += lLinearGroupText_str;
                         (frameIndex < (lFrameCount - 1)) && lText_str += ",";
@@ -657,6 +658,16 @@ _getNextLinearGroup = function (aSrc_obj, a_vsdo, aStartFrameIndex_int, aFrameCo
     var lMaxError_num = _getMaxError();
     var lSrcPropertyTimestamps_arr = _getObjectProperties(aSrc_obj);
     var lGroup_arr = [];
+
+    if (
+            (_areValuesEqual(aSrc_obj[lSrcPropertyTimestamps_arr[aStartFrameIndex_int]],
+                aSrc_obj[lSrcPropertyTimestamps_arr[aStartFrameIndex_int + 1]]))
+            || (_areValuesEqual(aSrc_obj[lSrcPropertyTimestamps_arr[aStartFrameIndex_int + 1]],
+                    aSrc_obj[lSrcPropertyTimestamps_arr[aStartFrameIndex_int + 2]]))
+        )
+    {
+        return [];
+    }
 
     lGroup_arr.push(aSrc_obj[lSrcPropertyTimestamps_arr[aStartFrameIndex_int]]);
     lGroup_arr.push(aSrc_obj[lSrcPropertyTimestamps_arr[aStartFrameIndex_int + 1]]);
@@ -736,7 +747,7 @@ _isArrayLinear = function (aSrc_arr, a_vsdo, aMaxError_num)
             var lSecondValue_num = aSrc_arr[arrIndex + 1][a_vsdo.names[propIndex]];
             var lCurrentDiff_num = Math.abs(lSecondValue_num - lFirstValue_num);
             var lCurrentError_num = Math.abs(lCurrentDiff_num - lAvgDiff_num) / Math.abs(lAvgDiff_num) * 100;
-            if (Math.abs(lCurrentDiff_num - lAvgDiff_num) < (_MIN_PROPERTY_VALUE[a_vsdo.srcName]))
+            if (Math.abs(lCurrentDiff_num - lAvgDiff_num) < (_MIN_PROPERTY_VALUE[a_vsdo.srcName]) * 2 / 3)
             {
                 continue;
             }
