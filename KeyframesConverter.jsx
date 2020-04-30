@@ -659,16 +659,6 @@ _getNextLinearGroup = function (aSrc_obj, a_vsdo, aStartFrameIndex_int, aFrameCo
     var lSrcPropertyTimestamps_arr = _getObjectProperties(aSrc_obj);
     var lGroup_arr = [];
 
-    if (
-            (_areValuesEqual(aSrc_obj[lSrcPropertyTimestamps_arr[aStartFrameIndex_int]],
-                aSrc_obj[lSrcPropertyTimestamps_arr[aStartFrameIndex_int + 1]]))
-            || (_areValuesEqual(aSrc_obj[lSrcPropertyTimestamps_arr[aStartFrameIndex_int + 1]],
-                    aSrc_obj[lSrcPropertyTimestamps_arr[aStartFrameIndex_int + 2]]))
-        )
-    {
-        return [];
-    }
-
     lGroup_arr.push(aSrc_obj[lSrcPropertyTimestamps_arr[aStartFrameIndex_int]]);
     lGroup_arr.push(aSrc_obj[lSrcPropertyTimestamps_arr[aStartFrameIndex_int + 1]]);
     lGroup_arr.push(aSrc_obj[lSrcPropertyTimestamps_arr[aStartFrameIndex_int + 2]]);
@@ -734,17 +724,22 @@ _isArrayAscending = function (aSrc_arr, a_vsdo, aPropIndex_int) //ascending retu
 
 _isArrayLinear = function (aSrc_arr, a_vsdo, aMaxError_num)
 {
-    for (var propIndex = 0; propIndex < a_vsdo.names.length; propIndex++)
+    for (var arrIndex = 0; arrIndex < (aSrc_arr.length - 1); arrIndex++)
     {
-        if (_isArrayAscending(aSrc_arr, a_vsdo, propIndex) === undefined)
+        var lPropsEqual_bl = true;
+        for (var propIndex = 0; propIndex < a_vsdo.names.length; propIndex++)
         {
-            return false;
-        }
-        var lAvgDiff_num = Math.abs(_getAvgArrayDiff(aSrc_arr, a_vsdo, propIndex));
-        for (var arrIndex = 0; arrIndex < (aSrc_arr.length - 1); arrIndex++)
-        {
+            if (_isArrayAscending(aSrc_arr, a_vsdo, propIndex) === undefined)
+            {
+                return false;
+            }
             var lFirstValue_num = aSrc_arr[arrIndex][a_vsdo.names[propIndex]];
             var lSecondValue_num = aSrc_arr[arrIndex + 1][a_vsdo.names[propIndex]];
+            if (lPropsEqual_bl && (lFirstValue_num !== lSecondValue_num))
+            {
+                lPropsEqual_bl = false;
+            }
+            var lAvgDiff_num = Math.abs(_getAvgArrayDiff(aSrc_arr, a_vsdo, propIndex));
             var lCurrentDiff_num = Math.abs(lSecondValue_num - lFirstValue_num);
             var lCurrentError_num = Math.abs(lCurrentDiff_num - lAvgDiff_num) / Math.abs(lAvgDiff_num) * 100;
             if (Math.abs(lCurrentDiff_num - lAvgDiff_num) < (_MIN_PROPERTY_VALUE[a_vsdo.srcName]) * 2 / 3)
@@ -755,6 +750,10 @@ _isArrayLinear = function (aSrc_arr, a_vsdo, aMaxError_num)
             {
                 return false;
             }
+        }
+        if (lPropsEqual_bl)
+        {
+            return false;
         }
     }
 
