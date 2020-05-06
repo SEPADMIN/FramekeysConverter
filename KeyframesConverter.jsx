@@ -12,7 +12,7 @@ var _PROPERTIES = [
 var _MIN_PROPERTY_VALUE = {
             scale: 0.01,
             position: 1,
-            rotation: 1,
+            rotation: 0.01,
             opacity: 0.01
         };
 
@@ -51,7 +51,7 @@ _buildGUI = function ()
     {
         if (_COMP.layers[i] !== null)
         {
-            lSourceLayers_lb.add("item", _COMP.layers[i].name);
+            lSourceLayers_lb.add("item", "#" + _COMP.layers[i].index + "_" + _COMP.layers[i].name);
             lSourceLayersIndexes_arr.push(i);
         }
     }
@@ -66,7 +66,7 @@ _buildGUI = function ()
         _moveSelectedLayerBetweenGroups(lDestLayers_lb, lDestLayersIndexes_arr, lSourceLayers_lb, lSourceLayersIndexes_arr);
     }
 
-    l_window.settings = l_window.add("panel", undefined, "Settings", {name:"settings"}); 
+    l_window.settings = l_window.add("group", undefined, {name:"settings"});
     l_window.settings.alignChildren = ["fill", "fill"];
     l_window.settings.orientation = "row";
 
@@ -87,6 +87,7 @@ _buildGUI = function ()
     l_window.settings.properties.property_1.onClick = function ()
     {
         l_window.settings.gut.xy_mode.enabled = l_window.settings.properties.property_1.value;
+        l_window.positioning.enabled = l_window.settings.properties.property_1.value;
     }
 
     l_window.settings.mode = l_window.settings.add("panel", undefined, "Output mode", {name:"mode"});
@@ -128,6 +129,58 @@ _buildGUI = function ()
     l_window.settings.gut.linear_mode.onClick = function ()
     {
         l_window.settings.gut.max_error_group.enabled = l_window.settings.gut.linear_mode.value;
+    }
+
+    l_window.positioning = l_window.add("panel", undefined, "Positioning", {name:"positioning"});
+    l_window.positioning.alignChildren = ["fill", "fill"];
+    l_window.positioning.orientation = "row";
+    l_window.positioning.resolution_group = l_window.positioning.add("group", undefined, {name:"resolution_group"});
+    l_window.positioning.resolution_group.orientation = "column";
+    l_window.positioning.resolution_group.alignChildren = ["fill", "fill"];
+    l_window.positioning.resolution_group.force = l_window.positioning.resolution_group.add("checkbox", undefined, "Resolution", {name:"force"});
+    l_window.positioning.resolution_group.x_group = l_window.positioning.resolution_group.add("group", undefined, {name:"x_group"});
+    l_window.positioning.resolution_group.x_group.orientation = "row";
+    l_window.positioning.resolution_group.x_group.add("statictext", undefined, "X:");
+    l_window.positioning.resolution_group.x_group.width = l_window.positioning.resolution_group.x_group.add("edittext", undefined, "1920", {name:"width"});
+    l_window.positioning.resolution_group.x_group.width.characters = 8;
+    l_window.positioning.resolution_group.y_group = l_window.positioning.resolution_group.add("group", undefined, {name:"y_group"});
+    l_window.positioning.resolution_group.y_group.orientation = "row";
+    l_window.positioning.resolution_group.y_group.add("statictext", undefined, "Y:");
+    l_window.positioning.resolution_group.y_group.height = l_window.positioning.resolution_group.y_group.add("edittext", undefined, "1080", {name:"height"});
+    l_window.positioning.resolution_group.y_group.height.characters = 8;
+    l_window.positioning.resolution_group.x_group.enabled = false;
+    l_window.positioning.resolution_group.y_group.enabled = false;
+
+    l_window.positioning.resolution_group.force.onClick = function ()
+    {
+        l_window.positioning.resolution_group.x_group.enabled = l_window.positioning.resolution_group.force.value;
+        l_window.positioning.resolution_group.y_group.enabled = l_window.positioning.resolution_group.force.value;
+    }
+
+    l_window.positioning.separator = l_window.positioning.add("panel");
+    l_window.positioning.separator.preferredSize = [0, 0];
+
+    l_window.positioning.offset_group = l_window.positioning.add("group", undefined, {name:"offset_group"});
+    l_window.positioning.offset_group.orientation = "column";
+    l_window.positioning.offset_group.alignChildren = ["fill", "fill"];
+    l_window.positioning.offset_group.force = l_window.positioning.offset_group.add("checkbox", undefined, "Offset", {name:"offset"});
+    l_window.positioning.offset_group.x_group = l_window.positioning.offset_group.add("group", undefined, {name:"x_group"});
+    l_window.positioning.offset_group.x_group.orientation = "row";
+    l_window.positioning.offset_group.x_group.add("statictext", undefined, "X:");
+    l_window.positioning.offset_group.x_group.offset_x = l_window.positioning.offset_group.x_group.add("edittext", undefined, "0", {name:"offset_x"});
+    l_window.positioning.offset_group.x_group.offset_x.characters = 8;
+    l_window.positioning.offset_group.y_group = l_window.positioning.offset_group.add("group", undefined, {name:"y_group"});
+    l_window.positioning.offset_group.y_group.orientation = "row";
+    l_window.positioning.offset_group.y_group.add("statictext", undefined, "Y:");
+    l_window.positioning.offset_group.y_group.offset_y = l_window.positioning.offset_group.y_group.add("edittext", undefined, "0", {name:"offset_y"});
+    l_window.positioning.offset_group.y_group.offset_y.characters = 8;
+    l_window.positioning.offset_group.x_group.enabled = false;
+    l_window.positioning.offset_group.y_group.enabled = false;
+
+    l_window.positioning.offset_group.force.onClick = function ()
+    {
+        l_window.positioning.offset_group.x_group.enabled = l_window.positioning.offset_group.force.value;
+        l_window.positioning.offset_group.y_group.enabled = l_window.positioning.offset_group.force.value;
     }
 
     l_window.btns_group = l_window.add("group", undefined, {name:"btns_group"});
@@ -236,6 +289,66 @@ _secondsToFrames = function (aSeconds_num)
     return Math.round(aSeconds_num * _COMP.frameRate);
 }
 
+_getResolutionMultiplier = function ()
+{
+    var l_group = _fWindow.positioning.resolution_group;
+    if (
+            (l_group.enabled === false)
+            || (l_group.force.value === false)
+        )
+    {
+        return [1, 1];
+    }
+    else
+    {
+        var lX_num = Number(l_group.x_group.width.text);
+        if (lX_num instanceof NaN)
+        {
+            lX_num = 1;
+        }
+        else
+        {
+            lX_num = _COMP.width / lX_num;
+        }
+        var lY_num = Number(l_group.y_group.height.text);
+        if (lY_num instanceof NaN)
+        {
+            lY_num = 1;
+        }
+        else
+        {
+            lY_num = _COMP.height / lY_num;
+        }
+        return [lX_num, lY_num];
+    }
+}
+
+_getPositionOffset = function ()
+{
+    var l_group = _fWindow.positioning.offset_group;
+    if (
+            (l_group.enabled === false)
+            || (l_group.force.value === false)
+        )
+    {
+        return [0, 0];
+    }
+    else
+    {
+        var lX_num = Number(l_group.x_group.offset_x.text);
+        if (lX_num instanceof NaN)
+        {
+            lX_num = 0;
+        }
+        var lY_num = Number(l_group.y_group.offset_y.text);
+        if (lY_num instanceof NaN)
+        {
+            lY_num = 0;
+        }
+        return [lX_num, lY_num];
+    }
+}
+
 _getAnimationsObject = function ()
 {
     var lLayersContainer_panel = _fWindow.children[0];
@@ -268,6 +381,9 @@ _getAnimationsObject = function ()
         _fLayerObjectsNames_arr.push(lLayer.name);
         _fLayersPropertiesTimestampsBounds_obj[lLayerName_str] = {};
         lTmp_obj[lLayerName_str] = {};
+
+        var lResolutionMultiplier_num = _getResolutionMultiplier();
+        var lPositionOffset = _getPositionOffset();
 
         //for each property of selected layer
         for (var propIndex = 0; propIndex < lProperties_arr.length; propIndex++)
@@ -312,8 +428,8 @@ _getAnimationsObject = function ()
                         lValues_arr[lTimestamp_num]["sy"] = Number((lValue[1] / 100).toFixed(2));
                         break;
                     case "position":
-                        lValues_arr[lTimestamp_num]["x"] = Number((lValue[0]).toFixed(2));
-                        lValues_arr[lTimestamp_num]["y"] = Number((lValue[1]).toFixed(2));
+                        lValues_arr[lTimestamp_num]["x"] = Number((lValue[0] * lResolutionMultiplier_num[0] + lPositionOffset[0]).toFixed(2));
+                        lValues_arr[lTimestamp_num]["y"] = Number((lValue[1] * lResolutionMultiplier_num[1] + lPositionOffset[1]).toFixed(2));
                         break;
                     case "rotation":
                         lValues_arr[lTimestamp_num]["r"] = Number((lValue * Math.PI / 180).toFixed(2));
@@ -595,7 +711,8 @@ _exportAsGUTimeline = function (aSrc_obj)
             lText_str += "\t\t]\n\t);\n";
         }
 
-        _saveAsGUTimeline(lText_str, lLayerName_str);
+        var lFileName_str = _fSelectedLayersIndexes_arr[layerIndex] + "_" + lLayerName_str;
+        _saveAsGUTimeline(lText_str, lFileName_str);
     }
 
     return true;
@@ -762,7 +879,16 @@ _isArrayLinear = function (aSrc_arr, a_vsdo, aMaxError_num)
 
 _getMaxError = function ()
 {
-    return Number(_fWindow.settings.gut.max_error_group.max_error.text);
+    var lText_str = _fWindow.settings.gut.max_error_group.max_error.text;
+    var l_num = Number(lText_str);
+    if (l_num instanceof Number)
+    {
+        return l_num;
+    }
+    else
+    {
+        return 7;
+    }
 }
 //...LINEAR INTERPOLATION SECTION
 
@@ -819,7 +945,8 @@ _exportAsJSON = function (aSrc_obj)
             }
         }
 
-        _saveAsJSON(lDest_obj, lLayerName_str);
+        var lFileName_str = _fSelectedLayersIndexes_arr[layerIndex] + "_" + lLayerName_str;
+        _saveAsJSON(lDest_obj, lFileName_str);
     }
 
     return true;
@@ -887,7 +1014,9 @@ _exportByGroupsAsJSON = function (aSrc_obj)
             {
                 lPostfix_str += "_" + lGroup_arr.children[i];
             }
-            _saveAsJSON(lDest_obj, lLayerName_str + lPostfix_str);
+
+            var lFileName_str = _fSelectedLayersIndexes_arr[layerIndex] + "_" + lLayerName_str + lPostfix_str;
+            _saveAsJSON(lDest_obj, lFileName_str);
         }
     }
 
@@ -931,7 +1060,7 @@ _saveAsJSON = function (aSrc_obj, aFileName_str)
 
 _formatJSON = function (aSrc_str)
 {
-    var l_str = aSrc_str.replace(/{\s*\n+\s*(["].*["]:\s*\d)/g, "$1");
+    var l_str = aSrc_str.replace(/{\s*\n+\s*(["].*["]:\s*[-]*\d)/g, "$1");
     l_str = l_str.replace(/(.*)[,]\s*\n\s*["]/g, "$1,\"");
     l_str = l_str.replace(/(\d)\s*\n\s*}/g, "$1}");
     l_str = l_str.replace(/\s*:\s*/g, ":");
