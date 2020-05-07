@@ -24,6 +24,7 @@ var _fLayerObjectsNames_arr = null;
 var _fLayersPropertiesTimestampsBounds_obj = null;
 var _fLayersTimestamps_obj = null;
 var _fLayersPropertiesGroup_obj = null;
+var _fFilesWritten_num = undefined;
 //...GLOBAL VARS SECTION
 
 //GUI SECTION...
@@ -581,6 +582,7 @@ _resetGlobalVars = function ()
     _fLayersPropertiesTimestampsBounds_obj = null;
     _fLayersTimestamps_obj = null;
     _fLayersPropertiesGroup_obj = null;
+    _fFilesWritten_num = undefined;
 }
 //...FUNCTION SECTION
 
@@ -907,7 +909,7 @@ _exportAsJSON = function (aSrc_obj)
 {
     if (!(_fSelectedLayersNames_arr))
     {
-        Window.alert("No layers selected. Please select at least one layer and try again.", "Error");
+        Window.alert("No layers selected. Please select at least one layer and try again", "Error");
         return undefined;
     }
 
@@ -967,7 +969,7 @@ _exportByGroupsAsJSON = function (aSrc_obj)
 {
     if (!(_fSelectedLayersNames_arr))
     {
-        Window.alert("No layers selected. Please select at least one layer and try again.", "Error");
+        Window.alert("No layers selected. Please select at least one layer and try again", "Error");
         return undefined;
     }
 
@@ -1038,6 +1040,7 @@ _exportByGroupsAsJSON = function (aSrc_obj)
 _exportObject = function (aSrc_obj) //wrapper for export
 {
     var result = undefined;
+    _fFilesWritten_num = 0;
     if (_isGUTimelineMode())
     {
         result = _exportAsGUTimeline(aSrc_obj);
@@ -1056,7 +1059,17 @@ _exportObject = function (aSrc_obj) //wrapper for export
 
     if (result === true)
     {
-        Window.alert("Operation finished successfully.", "Suсcess");
+        if (
+                (_fFilesWritten_num === undefined)
+                || (_fFilesWritten_num === 0)
+            )
+        {
+            Window.alert("Execution finished. No files written", "Finished");
+        }
+        else
+        {
+            Window.alert("Execution finished successfully. Files written: " + _fFilesWritten_num, "Suсcess");
+        }
         _resetGlobalVars();
     }
     return result;
@@ -1065,14 +1078,20 @@ _exportObject = function (aSrc_obj) //wrapper for export
 _saveAsJSON = function (aSrc_obj, aFileName_str)
 {
     var lOutput_file = new File(_getUrl(aFileName_str + ".json"));
-    var lTest_file = new File(_getUrl(aFileName_str + "_test.json"));
-    if (lOutput_file.open("w")) 
+    var lWriteRequired_bl = true;
+    if (lOutput_file.exists)
+    {
+        var lText_str = "File\n" + lOutput_file.fsName + "\nalready exists in your filesystem. Do you wish to overwrite it?"
+        lWriteRequired_bl = Window.confirm(lText_str, true, "File exists");
+    }
+    if (lWriteRequired_bl && lOutput_file.open("w")) 
     {
         lOutput_file.encoding = "UTF-8";
         var lContent = JSON.stringify(aSrc_obj, undefined, 2);
         lContent = _formatJSON(lContent);
         lOutput_file.write(lContent);
         lOutput_file.close();
+        _fFilesWritten_num++;
         return true;
     }
     return false;
@@ -1090,11 +1109,18 @@ _formatJSON = function (aSrc_str)
 _saveAsGUTimeline = function (aText_str, aFileName_str)
 {
     var lOutput_file = new File(_getUrl(aFileName_str + "_gut.js"));
-    if (lOutput_file.open("w")) 
+    var lWriteRequired_bl = true;
+    if (lOutput_file.exists)
+    {
+        var lText_str = "File\n" + lOutput_file.fsName + "\nalready exists in your filesystem. Do you wish to overwrite it?"
+        lWriteRequired_bl = Window.confirm(lText_str, true, "File exists");
+    }
+    if (lWriteRequired_bl && lOutput_file.open("w")) 
     {
         lOutput_file.encoding = "UTF-8";
         lOutput_file.write(aText_str);
         lOutput_file.close();
+        _fFilesWritten_num++;
         return true;
     }
     return false;
