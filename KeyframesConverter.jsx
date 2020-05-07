@@ -30,6 +30,7 @@ var _fErrorAlerted_bl = false;
 //GUI SECTION...
 _buildGUI = function ()
 {
+    var result = undefined;
     var l_window = new Window("dialog", "Keyframes Converter", undefined);
     _fWindow = l_window;
 
@@ -191,16 +192,17 @@ _buildGUI = function ()
 
     l_window.btns_group.ok.onClick = function ()
     {
-        return _exportObject(_getAnimationsObject());
+        result = _exportObject(_getAnimationsObject());
     }
 
     l_window.btns_group.cancel.onClick = function ()
     {
         l_window.close();
-        return false;
+        result = false;
     }
 
-    l_window.show(); 
+    l_window.show();
+    return result;
 }
 
 _moveSelectedLayerBetweenGroups = function (aSrcLayersGroup_lb, aSourceLayersIndexes_arr, aDestLayersGroup_lb, aDestLayersIndexes_arr)
@@ -375,7 +377,7 @@ _getAnimationsObject = function ()
             continue;
         }
 
-        var lLayerName_str = lLayer.name.replace(/\s/g, "_").toLowerCase();
+        var lLayerName_str = _fSelectedLayersIndexes_arr[childIndex] + "_" + lLayer.name.replace(/\s/g, "_").toLowerCase();
         _fSelectedLayersNames_arr.push(lLayerName_str);
         _fSelectedPropertiesNames_obj[lLayerName_str] = [];
         _fLayerObjectsNames_arr.push(lLayer.name);
@@ -711,7 +713,7 @@ _exportAsGUTimeline = function (aSrc_obj)
             lText_str += "\t\t]\n\t);\n";
         }
 
-        var lFileName_str = _fSelectedLayersIndexes_arr[layerIndex] + "_" + lLayerName_str;
+        var lFileName_str = lLayerName_str;
         _saveAsGUTimeline(lText_str, lFileName_str);
     }
 
@@ -947,8 +949,7 @@ _exportAsJSON = function (aSrc_obj)
             }
         }
 
-        var lFileName_str = _fSelectedLayersIndexes_arr[layerIndex] + "_" + lLayerName_str;
-        _saveAsJSON(lDest_obj, lFileName_str);
+        _saveAsJSON(lDest_obj, lLayerName_str);
     }
 
     return true;
@@ -1019,7 +1020,7 @@ _exportByGroupsAsJSON = function (aSrc_obj)
                 lPostfix_str += "_" + lGroup_arr.children[i];
             }
 
-            var lFileName_str = _fSelectedLayersIndexes_arr[layerIndex] + "_" + lLayerName_str + lPostfix_str;
+            var lFileName_str = lLayerName_str + lPostfix_str;
             _saveAsJSON(lDest_obj, lFileName_str);
         }
     }
@@ -1029,19 +1030,20 @@ _exportByGroupsAsJSON = function (aSrc_obj)
 
 _exportObject = function (aSrc_obj) //wrapper for export
 {
+    var result = undefined;
     if (_isGUTimelineMode())
     {
-        return _exportAsGUTimeline(aSrc_obj);
+        result = _exportAsGUTimeline(aSrc_obj);
     }
     else
     {
         if (_isGroupMode())
         {
-            return _exportByGroupsAsJSON(aSrc_obj);
+            result = _exportByGroupsAsJSON(aSrc_obj);
         }
         else
         {
-            return _exportAsJSON(aSrc_obj);
+            result = _exportAsJSON(aSrc_obj);
         }
     }
 
@@ -1051,6 +1053,7 @@ _exportObject = function (aSrc_obj) //wrapper for export
     }
 
     _fErrorAlerted_bl = false;
+    return result;
 }
 
 _saveAsJSON = function (aSrc_obj, aFileName_str)
