@@ -524,8 +524,9 @@ _getLayerTimestampsBounds = function (aLayerName_str)
 
     if (!(lTimestampsBounds_arr))
     {
-        Window.alert("An error occured while trying to get frames of layer " + aLayerName_str + ". Probably it was caused by keyframes break. Please try to make new keyframes for this layer. If error remains please contact @ircane for troubleshooting", "Unexpected error");
+        Window.alert("An error occured while trying to get frames of layer <" + aLayerName_str + ">. Probably it was caused by keyframes break. Please try to make new keyframes for this layer. If error remains please contact @ircane for troubleshooting", "Unexpected error");
         _fWindow.close();
+        return undefined;
     }
 
     var lMin_num = lTimestampsBounds_arr[0];
@@ -636,6 +637,11 @@ _exportAsGUTimeline = function (aSrc_obj)
         }
 
         var lGlobalBounds_arr = _getLayerTimestampsBounds(lLayerName_str);
+        if (!(lGlobalBounds_arr))
+        {
+            continue;
+        }
+        
         var lText_str = "var l_gut = new GUTimeline();\n";
 
         for (var propIndex = 0; propIndex < lProperties_obj.names.length; propIndex++)
@@ -972,6 +978,10 @@ _exportAsJSON = function (aSrc_obj)
         var lData_obj = lDest_obj[lLayerName_str]["samples"];
 
         var lGlobalBounds_arr = _getLayerTimestampsBounds(lLayerName_str);
+        if (!(lGlobalBounds_arr))
+        {
+            continue;
+        }
 
         var lFrameCount_num = _secondsToFrames(lGlobalBounds_arr[1] - lGlobalBounds_arr[0]) + 1;
 
