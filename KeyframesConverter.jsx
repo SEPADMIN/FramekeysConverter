@@ -521,7 +521,6 @@ _getLayerTimestampsBounds = function (aLayerName_str)
 {
     var lProperties_arr = _fSelectedPropertiesNames_obj[aLayerName_str];
     var lTimestampsBounds_arr = _fLayersPropertiesTimestampsBounds_obj[aLayerName_str][lProperties_arr[0]];
-
     if (!(lTimestampsBounds_arr))
     {
         Window.alert("An error occured while trying to get frames of layer <" + aLayerName_str + ">. Probably it was caused by keyframes break. Please try to make new keyframes for this layer. If error remains please contact @ircane for troubleshooting", "Unexpected error");
@@ -534,6 +533,12 @@ _getLayerTimestampsBounds = function (aLayerName_str)
     for (var propIndex = 1; propIndex < lProperties_arr.length; propIndex++)
     {
         lTimestampsBounds_arr = _fLayersPropertiesTimestampsBounds_obj[aLayerName_str][lProperties_arr[propIndex]];
+         if (!(lTimestampsBounds_arr))
+        {
+            Window.alert("An error occured while trying to get frames of layer <" + aLayerName_str + ">. Probably it was caused by keyframes break. Please try to make new keyframes for this layer. If error remains please contact @ircane for troubleshooting", "Unexpected error");
+            _fWindow.close();
+            return undefined;
+        }
         lMin_num > lTimestampsBounds_arr[0] && lMin_num = lTimestampsBounds_arr[0];
         lMax_num < lTimestampsBounds_arr[1] && lMax_num = lTimestampsBounds_arr[1];
     }
