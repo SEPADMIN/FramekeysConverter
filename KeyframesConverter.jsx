@@ -24,7 +24,6 @@ var _fLayerObjectsNames_arr = null;
 var _fLayersPropertiesTimestampsBounds_obj = null;
 var _fLayersTimestamps_obj = null;
 var _fLayersPropertiesGroup_obj = null;
-var _fErrorAlerted_bl = false;
 //...GLOBAL VARS SECTION
 
 //GUI SECTION...
@@ -573,6 +572,16 @@ _getObjectProperties = function (aSrc_obj)
         return [];
     }
 }
+
+_resetGlobalVars = function ()
+{
+    _fSelectedLayersNames_arr = null;
+    _fSelectedPropertiesNames_obj = null;
+    _fLayerObjectsNames_arr = null;
+    _fLayersPropertiesTimestampsBounds_obj = null;
+    _fLayersTimestamps_obj = null;
+    _fLayersPropertiesGroup_obj = null;
+}
 //...FUNCTION SECTION
 
 //EXPORT SECTION...
@@ -899,7 +908,6 @@ _exportAsJSON = function (aSrc_obj)
     if (!(_fSelectedLayersNames_arr))
     {
         Window.alert("No layers selected. Please select at least one layer and try again.", "Error");
-        _fErrorAlerted_bl = true;
         return undefined;
     }
 
@@ -960,7 +968,6 @@ _exportByGroupsAsJSON = function (aSrc_obj)
     if (!(_fSelectedLayersNames_arr))
     {
         Window.alert("No layers selected. Please select at least one layer and try again.", "Error");
-        _fErrorAlerted_bl = true;
         return undefined;
     }
 
@@ -1047,12 +1054,11 @@ _exportObject = function (aSrc_obj) //wrapper for export
         }
     }
 
-    if (!(_fErrorAlerted_bl))
+    if (result === true)
     {
-        _fWindow.close();
+        Window.alert("Operation finished successfully.", "Suсcess");
+        _resetGlobalVars();
     }
-
-    _fErrorAlerted_bl = false;
     return result;
 }
 
