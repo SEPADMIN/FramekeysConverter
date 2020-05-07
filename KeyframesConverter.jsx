@@ -419,6 +419,11 @@ _getAnimationsObject = function ()
             _fLayersPropertiesTimestampsBounds_obj[lLayerName_str][lPropertyName_str] = new Array(2);
             var lTimestampsBounds_arr = _fLayersPropertiesTimestampsBounds_obj[lLayerName_str][lPropertyName_str];
 
+            if (lNumKeys_int === 0)
+            {
+                continue;
+            }
+
             //cut identical values from the end of the property
             var lLastKey_int = lNumKeys_int;
             while (
@@ -516,6 +521,13 @@ _getLayerTimestampsBounds = function (aLayerName_str)
 {
     var lProperties_arr = _fSelectedPropertiesNames_obj[aLayerName_str];
     var lTimestampsBounds_arr = _fLayersPropertiesTimestampsBounds_obj[aLayerName_str][lProperties_arr[0]];
+
+    if (!(lTimestampsBounds_arr))
+    {
+        Window.alert("An error occured while trying to get frames of layer " + aLayerName_str + ". Probably it was caused by keyframes break. Please try to make new keyframes for this layer. If error remains please contact @ircane for troubleshooting", "Unexpected error");
+        _fWindow.close();
+    }
+
     var lMin_num = lTimestampsBounds_arr[0];
     var lMax_num = lTimestampsBounds_arr[1];
     for (var propIndex = 1; propIndex < lProperties_arr.length; propIndex++)
@@ -668,12 +680,20 @@ _exportAsGUTimeline = function (aSrc_obj)
                 lText_str += "\t\t\t" + lFrameDiff_int + ",\n"
             }
 
-            var lFrameCount = _secondsToFrames(lLocalBounds_arr[1] - lLocalBounds_arr[0]) + 1;
+            var lFrameCount_num = _secondsToFrames(lLocalBounds_arr[1] - lLocalBounds_arr[0]) + 1;
+
+            if (lFrameCount_num !== lSrcPropertyTimestamps_arr.length)
+            {
+                Window.alert("An error occured while trying to write frames of property <" + lPropertyName_str + "> of layer <" + lLayerName_str + ">. Probably it was caused by keyframes break. Please try to make new keyframes for this layer. If error remains please contact @ircane for troubleshooting", "Keyframes error");
+                lText_str = null;
+                break;
+            }
+
             var lTimestampIndex_int = 0;
-            for (var frameIndex = lWaitingStart_bl ? 0 : 1; frameIndex < lFrameCount; frameIndex++)
+            for (var frameIndex = lWaitingStart_bl ? 0 : 1; frameIndex < lFrameCount_num; frameIndex++)
             {
                 var lWaitLength_int = 0;
-                while (frameIndex < (lFrameCount - (lWaitingStart_bl ? 1 : 0))) //wait frames if current value equals next one(s)
+                while (frameIndex < (lFrameCount_num - (lWaitingStart_bl ? 1 : 0))) //wait frames if current value equals next one(s)
                 {
                     var lCheckNext_bl = true;
                     for (var i = 0; i < l_vsdo.names.length; i++)
@@ -694,7 +714,7 @@ _exportAsGUTimeline = function (aSrc_obj)
                     lWaitLength_int++;
                     frameIndex++;
                 }
-                if (frameIndex >= lFrameCount)
+                if (frameIndex >= lFrameCount_num)
                 {
                     break;
                 }
@@ -712,12 +732,12 @@ _exportAsGUTimeline = function (aSrc_obj)
                     lText_str += lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][l_vsdo.names[0]] + ", 1";
                 }
                 lText_str += "]";
-                (frameIndex < (lFrameCount - 1)) && lText_str += ",";
+                (frameIndex < (lFrameCount_num - 1)) && lText_str += ",";
                 lText_str += "\n";
 
                 if (_fWindow.settings.gut.linear_mode.value) //linear interpolation
                 {
-                    var lLinearGroup_arr = _getNextLinearGroup(lSrc_obj, l_vsdo, frameIndex, lFrameCount);
+                    var lLinearGroup_arr = _getNextLinearGroup(lSrc_obj, l_vsdo, frameIndex, lFrameCount_num);
                     if (lLinearGroup_arr.length >= 3)
                     {
                         frameIndex += lLinearGroup_arr.length - 1;
@@ -734,7 +754,7 @@ _exportAsGUTimeline = function (aSrc_obj)
                         lLinearGroupText_str += ", " + (lLinearGroup_arr.length - 1);
                         lLinearGroupText_str += ", GUTimeline.i_EASE_LINEAR]";
                         lText_str += lLinearGroupText_str;
-                        (frameIndex < (lFrameCount - 1)) && lText_str += ",";
+                        (frameIndex < (lFrameCount_num - 1)) && lText_str += ",";
                         lText_str += "\n";
                     }
                 }
@@ -744,7 +764,7 @@ _exportAsGUTimeline = function (aSrc_obj)
         }
 
         var lFileName_str = lLayerName_str;
-        _saveAsGUTimeline(lText_str, lFileName_str);
+        (lText_str) && _saveAsGUTimeline(lText_str, lFileName_str);
     }
 
     return true;
@@ -953,8 +973,9 @@ _exportAsJSON = function (aSrc_obj)
 
         var lGlobalBounds_arr = _getLayerTimestampsBounds(lLayerName_str);
 
-        var lFrameCount = _secondsToFrames(lGlobalBounds_arr[1] - lGlobalBounds_arr[0]) + 1;
-        for (var i = 0; i < lFrameCount; i++)
+        var lFrameCount_num = _secondsToFrames(lGlobalBounds_arr[1] - lGlobalBounds_arr[0]) + 1;
+
+        for (var i = 0; i < lFrameCount_num; i++)
         {
             lData_obj.push({});
         }
@@ -988,7 +1009,21 @@ _exportAsJSON = function (aSrc_obj)
             }
         }
 
-        _saveAsJSON(lDest_obj, lLayerName_str);
+        var lFramesContinual_bl = true;
+        for (var frameIndex = 0; frameIndex < lFrameCount_num; frameIndex++)
+        {
+            if (
+                    !(lData_obj[frameIndex])
+                    || (_getObjectProperties(lData_obj[frameIndex]).length === 0)
+                )
+            {
+                lFramesContinual_bl = false;
+                Window.alert("An error occured while trying to write frames of layer <" + lLayerName_str + ">. Probably it was caused by keyframes break. Please try to make new keyframes for this layer. If error remains please contact @ircane for troubleshooting", "Keyframes error");
+                break;
+            }
+        }
+
+        (lFramesContinual_bl) && _saveAsJSON(lDest_obj, lLayerName_str);
     }
 
     return true;
@@ -1018,8 +1053,8 @@ _exportByGroupsAsJSON = function (aSrc_obj)
             var lGroup_arr = _fLayersPropertiesGroup_obj[lLayerName_str][groupIndex];
             var lGroupBounds_arr = lGroup_arr.bounds;
 
-            var lFrameCount = _secondsToFrames(lGroupBounds_arr[1] - lGroupBounds_arr[0]) + 1;
-            for (var i = 0; i < lFrameCount; i++)
+            var lFrameCount_num = _secondsToFrames(lGroupBounds_arr[1] - lGroupBounds_arr[0]) + 1;
+            for (var i = 0; i < lFrameCount_num; i++)
             {
                 lData_obj.push({});
             }
