@@ -387,7 +387,7 @@ _getAnimationsObject = function ()
         var lResolutionMultiplier_num = _getResolutionMultiplier();
         var lPositionOffset = _getPositionOffset();
 
-        //for each property of selected layer
+        //skip nonanimated properties
         for (var propIndex = 0; propIndex < lProperties_arr.length; propIndex++)
         {
             var l_property = lLayer[lProperties_arr[propIndex]];
@@ -396,10 +396,26 @@ _getAnimationsObject = function ()
             {
                 continue;
             }
+            else
+            {
+                _fSelectedPropertiesNames_obj[lLayerName_str].push(lProperties_arr[propIndex]);
+            }
+        }
 
+        //skip nonanimated layer
+        if (_fSelectedPropertiesNames_obj[lLayerName_str].length === 0)
+        {
+            Window.alert("No selected properties animated in layer " + lLayerName_str, "Layer skipped");
+            continue;
+        }
+
+        //for each animated property of selected layer
+        for (var propIndex = 0; propIndex < _fSelectedPropertiesNames_obj[lLayerName_str].length; propIndex++)
+        {
+            var l_property = lLayer[lProperties_arr[propIndex]];
+            var lNumKeys_int = l_property.numKeys;
             var lPropertyName_str = lProperties_arr[propIndex];
             var lValues_arr = {};
-            _fSelectedPropertiesNames_obj[lLayerName_str].push(lPropertyName_str);
             _fLayersPropertiesTimestampsBounds_obj[lLayerName_str][lPropertyName_str] = new Array(2);
             var lTimestampsBounds_arr = _fLayersPropertiesTimestampsBounds_obj[lLayerName_str][lPropertyName_str];
 
@@ -599,7 +615,10 @@ _exportAsGUTimeline = function (aSrc_obj)
         var lLayerName_str = _fSelectedLayersNames_arr[layerIndex];
         var lProperties_obj = _getPropertiesGUT(lLayerName_str);
 
-        if (!(_fSelectedPropertiesNames_obj[lLayerName_str]))
+        if (
+                !(_fSelectedPropertiesNames_obj[lLayerName_str])
+                || (_fSelectedPropertiesNames_obj[lLayerName_str].length === 0)
+            )
         {
             continue;
         }
@@ -915,9 +934,19 @@ _exportAsJSON = function (aSrc_obj)
 
     for (var layerIndex = 0; layerIndex < _fSelectedLayersNames_arr.length; layerIndex++)
     {
-        var lDest_obj = {};
         var lLayerName_str = _fSelectedLayersNames_arr[layerIndex];
         var lProperties_arr = _fSelectedPropertiesNames_obj[lLayerName_str];
+
+        //skip nonanimated layer
+        if (
+                !(lProperties_arr)
+                || (lProperties_arr.length === 0)
+            )
+        {
+            continue;
+        }
+
+        var lDest_obj = {};
         lDest_obj[lLayerName_str] = {};
         lDest_obj[lLayerName_str]["samples"] = [];
         var lData_obj = lDest_obj[lLayerName_str]["samples"];
