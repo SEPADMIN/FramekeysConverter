@@ -24,6 +24,7 @@ var _fLayerObjectsNames_arr = null;
 var _fLayersPropertiesTimestampsBounds_obj = null;
 var _fLayersTimestamps_obj = null;
 var _fLayersPropertiesGroup_obj = null;
+var _fErrorAlerted_bl = false;
 //...GLOBAL VARS SECTION
 
 //GUI SECTION...
@@ -190,7 +191,6 @@ _buildGUI = function ()
 
     l_window.btns_group.ok.onClick = function ()
     {
-        l_window.close();
         return _exportObject(_getAnimationsObject());
     }
 
@@ -896,6 +896,8 @@ _exportAsJSON = function (aSrc_obj)
 {
     if (!(_fSelectedLayersNames_arr))
     {
+        Window.alert("No layers selected. Please select at least one layer and try again.", "Error");
+        _fErrorAlerted_bl = true;
         return undefined;
     }
 
@@ -956,6 +958,8 @@ _exportByGroupsAsJSON = function (aSrc_obj)
 {
     if (!(_fSelectedLayersNames_arr))
     {
+        Window.alert("No layers selected. Please select at least one layer and try again.", "Error");
+        _fErrorAlerted_bl = true;
         return undefined;
     }
 
@@ -1040,6 +1044,13 @@ _exportObject = function (aSrc_obj) //wrapper for export
             return _exportAsJSON(aSrc_obj);
         }
     }
+
+    if (!(_fErrorAlerted_bl))
+    {
+        _fWindow.close();
+    }
+
+    _fErrorAlerted_bl = false;
 }
 
 _saveAsJSON = function (aSrc_obj, aFileName_str)
