@@ -1,5 +1,6 @@
-/*Designed by ircane*/
+﻿/*Designed by ircane*/
 /*Implemented by ircane*/
+#include "json2.js";
 //GLOBAL VARS SECTION...
 var _PROJ = app.project; 
 var _COMP = _PROJ.activeItem;
@@ -634,6 +635,7 @@ _exportAsGUTimeline = function (aSrc_obj)
 {
     if (!(_fSelectedLayersNames_arr))
     {
+        Window.alert("No layers selected. Please select at least one layer and try again.", "Error");
         return undefined;
     }
 
