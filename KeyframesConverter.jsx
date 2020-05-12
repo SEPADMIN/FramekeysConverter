@@ -99,6 +99,10 @@ _buildGUI = function ()
     l_window.settings.mode.add("checkbox", undefined, "Group mode", {name:"group_mode"});
     l_window.settings.mode.gut_mode.value = true;
     l_window.settings.mode.group_mode.enabled = false;
+    l_window.settings.mode.separator = l_window.settings.mode.add("panel");
+    l_window.settings.mode.separator.preferredSize = [0, 0];
+    l_window.settings.mode.add("checkbox", undefined, "Comment info", {name:"info_mode"});
+    l_window.settings.mode.info_mode.value = true;
 
     l_window.settings.mode.gut_mode.onClick = function ()
     {
@@ -223,12 +227,17 @@ _moveSelectedLayerBetweenGroups = function (aSrcLayersGroup_lb, aSourceLayersInd
 
 _isGroupMode = function () //get if group mode checkbox is checked
 {
-    return _fWindow.children["settings"].children["mode"].children["group_mode"].value;
+    return _fWindow.settings.mode.group_mode.value;
 }
 
 _isGUTimelineMode = function () //get if GUTimeline mode radiobutton is checked
 {
-    return _fWindow.children["settings"].children["mode"].children["gut_mode"].value;
+    return _fWindow.settings.mode.gut_mode.value;
+}
+
+_isInfoMode = function () //get if comment info checkbox is checked
+{
+    return _fWindow.settings.mode.info_mode.value;
 }
 //...GUI SECTION
 
@@ -647,7 +656,13 @@ _exportAsGUTimeline = function (aSrc_obj)
             continue;
         }
         
-        var lText_str = "var l_gut = new GUTimeline();\n";
+        var lText_str = "";
+        if (_isInfoMode())
+        {
+            lText_str += "//start time: " + lGlobalBounds_arr[0] + "; end time: " + lGlobalBounds_arr[1] + "\n";
+            lText_str += "//start frame: " + _secondsToFrames(lGlobalBounds_arr[0]) + "; end frame: " + _secondsToFrames(lGlobalBounds_arr[1]) + "\n";
+        }
+        lText_str += "var l_gut = new GUTimeline();\n";
 
         for (var propIndex = 0; propIndex < lProperties_obj.names.length; propIndex++)
         {
@@ -1038,7 +1053,11 @@ _exportAsJSON = function (aSrc_obj)
             }
         }
 
-        (lFramesContinual_bl) && _saveAsJSON(lDest_obj, lLayerName_str);
+        if (lFramesContinual_bl)
+        {
+            _saveAsJSON(lDest_obj, lLayerName_str);
+            (_isInfoMode()) && _saveJSONInfo(lGlobalBounds_arr, lLayerName_str);
+        }
     }
 
     return true;
@@ -1110,6 +1129,7 @@ _exportByGroupsAsJSON = function (aSrc_obj)
 
             var lFileName_str = lLayerName_str + lPostfix_str;
             _saveAsJSON(lDest_obj, lFileName_str);
+            (_isInfoMode()) && _saveJSONInfo(lGroupBounds_arr, lFileName_str);
         }
     }
 
@@ -1171,6 +1191,28 @@ _saveAsJSON = function (aSrc_obj, aFileName_str)
         lOutput_file.write(lContent);
         lOutput_file.close();
         _fFilesWritten_num++;
+        return true;
+    }
+    return false;
+}
+
+_saveJSONInfo = function (aBounds_arr, aFileName_str)
+{
+    var lOutput_file = new File(_getUrl(aFileName_str + ".json.txt"));
+    var lWriteRequired_bl = true;
+    if (lOutput_file.exists)
+    {
+        var lText_str = "Info file\n" + lOutput_file.fsName + "\nalready exists in your filesystem. Do you wish to overwrite it?"
+        lWriteRequired_bl = Window.confirm(lText_str, true, "File exists");
+    }
+    if (lWriteRequired_bl && lOutput_file.open("w")) 
+    {
+        lOutput_file.encoding = "UTF-8";
+        var lContent = "";
+        lContent += "//start time: " + aBounds_arr[0] + "; end time: " + aBounds_arr[1] + "\n";
+        lContent += "//start frame: " + _secondsToFrames(aBounds_arr[0]) + "; end frame: " + _secondsToFrames(aBounds_arr[1]) + "\n";
+        lOutput_file.write(lContent);
+        lOutput_file.close();
         return true;
     }
     return false;
