@@ -129,8 +129,9 @@ _buildGUI = function ()
     l_wnd.settings.gut.xy_mode.value = true;
     l_wnd.settings.gut.separator = l_wnd.settings.gut.add("panel");
     l_wnd.settings.gut.separator.preferredSize = [0, 0];
-    l_wnd.settings.gut.linear_mode = l_wnd.settings.gut.add("checkbox", undefined, "Linear interpolation", {name:"linear_mode"});
-    l_wnd.settings.gut.linear_mode.value = true;
+    l_wnd.settings.gut.no_interpolation_mode = l_wnd.settings.gut.add("radiobutton", undefined, "No interpolation", {name:"no_interpolation_mode"});
+    l_wnd.settings.gut.no_interpolation_mode.value = true;
+    l_wnd.settings.gut.linear_mode = l_wnd.settings.gut.add("radiobutton", undefined, "Linear interpolation", {name:"linear_mode"});
     l_wnd.settings.gut.max_error_group = l_wnd.settings.gut.add("group", undefined, {name:"max_error_group"});
     l_wnd.settings.gut.max_error_group.orientation = "row";
     l_wnd.settings.gut.max_error_group.add("statictext", undefined, "Max group error %:");
@@ -243,6 +244,11 @@ _isGUTimelineMode = function () //get if GUTimeline mode radiobutton is checked
 _isInfoMode = function () //get if comment info checkbox is checked
 {
     return _fWindow_wnd.settings.mode.info_mode.value;
+}
+
+_isNoInterolationMode = function () //get if no interpolation mode is checked
+{
+    return _fWindow_wnd.settings.gut.no_interpolation_mode.value;
 }
 //...GUI SECTION
 
@@ -714,7 +720,11 @@ _exportAsGUTimeline = function (aSrc_obj)
 
             var lFrameCount_num = _secondsToFrames(lLocalBounds_arr[1] - lLocalBounds_arr[0]) + 1;
 
-            if (lFrameCount_num !== lSrcPropertyTimestamps_arr.length)
+            if (_fWindow_wnd.settings.gut.no_interpolation_mode.value)
+            {
+                lFrameCount_num = lSrcPropertyTimestamps_arr.length;
+            }
+            else if (lFrameCount_num !== lSrcPropertyTimestamps_arr.length)
             {
                 Window.alert("An error occured while trying to write frames of property <" + lPropertyName_str + "> of layer <" + lLayerName_str + ">. Probably it was caused by keyframes break. Please try to make new keyframes for this layer. If error remains please contact @ircane for troubleshooting", "Keyframes error");
                 lText_str = null;
@@ -751,20 +761,45 @@ _exportAsGUTimeline = function (aSrc_obj)
                     break;
                 }
 
-                (lWaitLength_int > 0) && lText_str += "\t\t\t" + lWaitLength_int + ",\n";
+                if (lWaitLength_int > 0)
+                {
+                    lText_str += "\t\t\t";
+                    if (_isNoInterolationMode())
+                    {
+                        log(lSrcPropertyTimestamps_arr[frameIndex].name);
+                        lText_str += _secondsToFrames(lSrcPropertyTimestamps_arr[frameIndex - 1].name - lSrcPropertyTimestamps_arr[frameIndex - 2].name);
+                    }
+                    else
+                    {
+                        lText_str += lWaitLength_int;
+                    }
+                    lText_str += ",\n";
+                }
 
                 lText_str += "\t\t\t[";
-                if (l_vsdo.arrayMode)
+                if (
+                        l_vsdo.arrayMode
+                        && lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][l_vsdo.names[0]] !== lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][l_vsdo.names[1]]
+                    )
                 {
                     lText_str += "[" + lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][l_vsdo.names[0]] + ", " 
-                        + lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][l_vsdo.names[1]] + "], 1";
+                        + lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][l_vsdo.names[1]] + "], ";
                 }
                 else
                 {
-                    lText_str += lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][l_vsdo.names[0]] + ", 1";
+                    lText_str += lSrc_obj[lSrcPropertyTimestamps_arr[frameIndex]][l_vsdo.names[0]] + ", ";
+                }
+                if (_isNoInterolationMode())
+                {
+                    lText_str += _secondsToFrames(lSrcPropertyTimestamps_arr[frameIndex].name - lSrcPropertyTimestamps_arr[frameIndex - 1].name);
+                }
+                else
+                {
+                    lText_str += "1";
                 }
                 lText_str += "]";
                 (frameIndex < (lFrameCount_num - 1)) && lText_str += ",";
+                _isInfoMode() && lText_str += " // frame #" + _secondsToFrames(lSrcPropertyTimestamps_arr[frameIndex].name);
                 lText_str += "\n";
 
                 if (_fWindow_wnd.settings.gut.linear_mode.value) //linear interpolation
