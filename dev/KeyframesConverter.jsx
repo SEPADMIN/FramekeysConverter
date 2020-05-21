@@ -107,7 +107,6 @@ _buildGUI = function ()
     l_wnd.settings.mode.separator = l_wnd.settings.mode.add("panel");
     l_wnd.settings.mode.separator.preferredSize = [0, 0];
     l_wnd.settings.mode.add("checkbox", undefined, "Comment info", {name:"info_mode"});
-    l_wnd.settings.mode.info_mode.value = true;
 
     l_wnd.settings.mode.gut_mode.onClick = function ()
     {
@@ -697,7 +696,10 @@ _exportAsGUTimeline = function (aSrc_obj)
                 lInitValue_str = "init_value_placeholder";
                 lWaitingStart_bl = true;
             }
-            else if (l_vsdo.arrayMode)
+            else if (
+                        l_vsdo.arrayMode
+                        && lSrc_obj[lSrcPropertyTimestamps_arr[0]][l_vsdo.names[0]] !== lSrc_obj[lSrcPropertyTimestamps_arr[0]][l_vsdo.names[1]]
+                    )
             {
                 lInitValue_str = "[";
                 for (var i = 0; i < l_vsdo.names.length; i++)
