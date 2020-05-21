@@ -17,6 +17,7 @@ var _MIN_PROPERTY_VALUE = {
             opacity: 0.01
         };
 var _DEFAULT_MAX_ERROR = 7;
+var _FILENAME_FORMAT_RE = /\/|\+|\=|\[|\]|\:|\;|\"|\,|\.|\?|\s/g;
 //...CONST SECTION
 
 //GLOBAL VARS SECTION...
@@ -1181,7 +1182,7 @@ _exportObject = function (aSrc_obj) //wrapper for export
 
 _saveAsJSON = function (aSrc_obj, aFileName_str)
 {
-    var lOutput_file = new File(_getUrl(aFileName_str + ".json"));
+    var lOutput_file = new File(_getUrl(aFileName_str.replace(_FILENAME_FORMAT_RE, "_") + ".json"));
     var lWriteRequired_bl = true;
     if (lOutput_file.exists)
     {
@@ -1203,7 +1204,7 @@ _saveAsJSON = function (aSrc_obj, aFileName_str)
 
 _saveJSONInfo = function (aBounds_arr, aFileName_str)
 {
-    var lOutput_file = new File(_getUrl(aFileName_str + ".json.txt"));
+    var lOutput_file = new File(_getUrl(aFileName_str.replace(_FILENAME_FORMAT_RE, "_") + ".json.txt"));
     var lWriteRequired_bl = true;
     if (lOutput_file.exists)
     {
@@ -1234,15 +1235,16 @@ _formatJSON = function (aSrc_str)
 
 _saveAsGUTimeline = function (aText_str, aFileName_str)
 {
-    var lOutput_file = new File(_getUrl(aFileName_str + "_gut.js"));
+    var lOutput_file = new File((_getUrl(aFileName_str.replace(_FILENAME_FORMAT_RE, "_") + "_gut.js")));
     var lWriteRequired_bl = true;
     if (lOutput_file.exists)
     {
         var lText_str = "File\n" + lOutput_file.fsName + "\nalready exists in your filesystem. Do you wish to overwrite it?"
         lWriteRequired_bl = Window.confirm(lText_str, true, "File exists");
     }
-    if (lWriteRequired_bl && lOutput_file.open("w")) 
+    if (lWriteRequired_bl) 
     {
+        lOutput_file.open("w");
         lOutput_file.encoding = "UTF-8";
         lOutput_file.write(aText_str);
         lOutput_file.close();
